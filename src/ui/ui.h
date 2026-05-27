@@ -1,0 +1,56 @@
+#include "imgui.h"
+
+void DrawSideBar(
+    const char* id, 
+    float x, 
+    float width, 
+    float marginTop, 
+    float marginBottom, 
+    float rounding, 
+    ImU32 color
+);
+
+void DrawBottomBar(
+    float height,
+    ImU32 color
+);
+
+void DrawExplorer(
+    const char* id,
+    float sidebarX,
+    float sidebarWidth,
+    float marginFromSideBar,
+    float width,
+    float marginTop,
+    float marginBottom,
+    float rounding,
+    ImU32 color
+);
+
+void DrawTabBar(
+    float explorerX,
+    float explorerWidth,
+    float marginFromExplorer,
+    float marginTop,
+    float height,
+    float marginRight,
+    float rounding,
+    ImU32 color
+);
+
+void DrawCodeEditor(
+    const char* id,
+    float explorerX,
+    float explorerWidth,
+    float marginFromExplorer,
+    float tabBarY,
+    float tabBarHeight,
+    float marginFromTabBar,
+    float bottomBarHeight,
+    float marginFromBottomBar,
+    float marginRight,
+    float rounding,
+    ImU32 color,
+    float customWidth = 0.0f,
+    float customHeight = 0.0f
+);

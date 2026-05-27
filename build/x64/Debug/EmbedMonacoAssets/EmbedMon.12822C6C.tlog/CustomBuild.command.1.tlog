@@ -1,0 +1,30 @@
+^C:\USERS\WILLOW\DESKTOP\IMEDITOR\BUILD\CMAKEFILES\61E0330608F17D6DD8D365EAC223C0E1\EMBEDDED_MONACO.H.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E make_directory C:/Users/Willow/Desktop/ImEditor/build/generated
+if %errorlevel% neq 0 goto :cmEnd
+powershell -ExecutionPolicy Bypass -File C:/Users/Willow/Desktop/ImEditor/scripts/embed_monaco.ps1 -InputDir C:/Users/Willow/Desktop/ImEditor/external/monaco/vs -Output C:/Users/Willow/Desktop/ImEditor/build/generated/embedded_monaco.h
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\WILLOW\DESKTOP\IMEDITOR\BUILD\CMAKEFILES\A07391C3273653529C27F802667FCB91\EMBEDMONACOASSETS.RULE
+setlocal
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\WILLOW\DESKTOP\IMEDITOR\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/Willow/Desktop/ImEditor -BC:/Users/Willow/Desktop/ImEditor/build --check-stamp-file C:/Users/Willow/Desktop/ImEditor/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
