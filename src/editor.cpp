@@ -1,7 +1,7 @@
 #include "editor.h"
 #include "ui.h"
 
-void DrawEditor(const ImVec2& Display_Size)
+bool DrawEditor(const ImVec2& Display_Size, ImVec2* editorMin, ImVec2* editorMax)
 {
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
     ImGui::SetNextWindowSize(Display_Size);
@@ -85,7 +85,7 @@ void DrawEditor(const ImVec2& Display_Size)
         IM_COL32(45, 45, 55, 255)
     );
 
-    DrawCodeEditor(
+    bool hasEditorRect = DrawCodeEditor(
         "CodeEditor",
         explorerX,
         explorerWidth,
@@ -97,8 +97,11 @@ void DrawEditor(const ImVec2& Display_Size)
         mainPanelMarginFromBottomBar,
         mainPanelRightMargin,
         mainPanelRounding,
-        IM_COL32(35, 35, 45, 255)
+        IM_COL32(35, 35, 45, 255),
+        editorMin,
+        editorMax
     );
 
     ImGui::End();
+    return hasEditorRect;
 }

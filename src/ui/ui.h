@@ -38,7 +38,7 @@ void DrawTabBar(
     ImU32 color
 );
 
-void DrawCodeEditor(
+bool DrawCodeEditor(
     const char* id,
     float explorerX,
     float explorerWidth,
@@ -51,6 +51,8 @@ void DrawCodeEditor(
     float marginRight,
     float rounding,
     ImU32 color,
+    ImVec2* outMin,
+    ImVec2* outMax,
     float customWidth = 0.0f,
     float customHeight = 0.0f
 );

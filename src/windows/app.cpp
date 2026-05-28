@@ -20,6 +20,8 @@ bool App::Initialize()
     ::ShowWindow(m_window.hwnd, SW_SHOWDEFAULT);
     ::UpdateWindow(m_window.hwnd);
 
+    m_monaco.Initialize(m_window.hwnd);
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
@@ -90,7 +92,26 @@ void App::RenderFrame()
 {
     ImGuiIO& io = ImGui::GetIO();
 
-    DrawEditor(io.DisplaySize);
+    ImVec2 editorMin;
+    ImVec2 editorMax;
+
+    bool showEditor = DrawEditor(io.DisplaySize, &editorMin, &editorMax);
+
+    if (showEditor)
+    {
+        RECT rect;
+        rect.left = static_cast<LONG>(editorMin.x);
+        rect.top = static_cast<LONG>(editorMin.y);
+        rect.right = static_cast<LONG>(editorMax.x);
+        rect.bottom = static_cast<LONG>(editorMax.y);
+
+        m_monaco.SetBounds(rect);
+        m_monaco.SetVisible(true);
+    }
+    else
+    {
+        m_monaco.SetVisible(false);
+    }
 }
 
 void App::EndFrame()

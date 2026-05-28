@@ -1,6 +1,6 @@
 #include "ui.h"
 
-void DrawCodeEditor(
+bool DrawCodeEditor(
     const char* id,
     float explorerX,
     float explorerWidth,
@@ -13,6 +13,8 @@ void DrawCodeEditor(
     float marginRight,
     float rounding,
     ImU32 color,
+    ImVec2* outMin,
+    ImVec2* outMax,
     float customWidth,
     float customHeight
 )
@@ -46,6 +48,12 @@ void DrawCodeEditor(
     ImVec2 min = ImGui::GetCursorScreenPos();
     ImVec2 max = ImVec2(min.x + size.x, min.y + size.y);
 
+    if (outMin)
+        *outMin = min;
+
+    if (outMax)
+        *outMax = max;
+
     ImDrawList* draw = ImGui::GetWindowDrawList();
 
     draw->AddRectFilled(
@@ -57,4 +65,6 @@ void DrawCodeEditor(
     );
 
     ImGui::Dummy(size);
+
+    return width > 0.0f && height > 0.0f;
 }

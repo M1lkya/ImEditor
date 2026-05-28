@@ -2,6 +2,24 @@ cmake_minimum_required(VERSION 3.20)
 
 project(ImEditor)
 
+set(WEBVIEW2_ROOT
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/Microsoft.Web.WebView2"
+)
+
+set(WEBVIEW2_INCLUDE_DIR
+    "${WEBVIEW2_ROOT}/build/native/include"
+)
+
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(WEBVIEW2_ARCH "x64")
+else()
+    set(WEBVIEW2_ARCH "x86")
+endif()
+
+set(WEBVIEW2_LOADER_LIB
+    "${WEBVIEW2_ROOT}/build/native/${WEBVIEW2_ARCH}/WebView2LoaderStatic.lib"
+)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -20,6 +38,8 @@ add_executable(ImEditor
     src/ui/DrawCodeEditor.cpp
 
     src/ui/components/tabs.cpp
+
+    src/web/MonacoHost.cpp
 
     include/imgui/imgui.cpp
     include/imgui/imgui_draw.cpp
@@ -44,10 +64,16 @@ target_include_directories(ImEditor PRIVATE
 
     "${CMAKE_CURRENT_SOURCE_DIR}/src/windows"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/windows/dx11"
+
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/web"
+
+    "${WEBVIEW2_INCLUDE_DIR}"
 )
 
 target_link_libraries(ImEditor PRIVATE
     d3d11
     dxgi
     d3dcompiler
+
+    "${WEBVIEW2_LOADER_LIB}"
 )
