@@ -83,10 +83,6 @@ add_executable(ImEditor
 
 add_dependencies(ImEditor EmbedMonaco)
 
-target_compile_definitions(ImEditor PRIVATE
-    IMEDITOR_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets"
-)
-
 target_include_directories(ImEditor PRIVATE
     "${GENERATED_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/include"

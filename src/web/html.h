@@ -31,41 +31,58 @@ inline constexpr wchar_t MONACO_HTML[] = LR"HTML(
             width: 100%;
             height: 100%;
         }
-
-        #status {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            z-index: 9999;
-            background: rgba(0, 0, 0, 0.75);
-            padding: 8px 10px;
-            border-radius: 6px;
-            font-size: 13px;
-            pointer-events: none;
-        }
     </style>
 </head>
 
 <body>
     <div id="editor-shell">
-        <div id="status">Loading loader.js...</div>
         <div id="container"></div>
     </div>
 
     <script>
-        const statusBox = document.getElementById("status");
+        let editor = null;
 
-        window.onerror = function (message, source, line, column, error) {
-            statusBox.textContent = "JS error: " + message;
-        };
+        function blockMonacoCommandShortcuts(event) {
+            const key = event.key.toLowerCase();
+
+            const isCtrlOrMeta = event.ctrlKey || event.metaKey;
+            const isAlt = event.altKey;
+            const isFunctionCommand =
+                event.key === "F1" ||
+                event.key === "F3";
+
+            if (!isCtrlOrMeta && !isAlt && !isFunctionCommand)
+                return;
+
+            const allowedEditingShortcut =
+                isCtrlOrMeta &&
+                !event.altKey &&
+                !event.shiftKey &&
+                (
+                    key === "c" ||
+                    key === "v" ||
+                    key === "x" ||
+                    key === "a" ||
+                    key === "z" ||
+                    key === "y"
+                );
+
+            if (allowedEditingShortcut)
+                return;
+
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        document.addEventListener(
+            "keydown",
+            blockMonacoCommandShortcuts,
+            true
+        );
 
         function startMonaco() {
-            if (typeof window.require === "undefined") {
-                statusBox.textContent = "loader.js loaded, but window.require is undefined.";
+            if (typeof window.require === "undefined")
                 return;
-            }
-
-            statusBox.textContent = "loader.js loaded. Loading Monaco...";
 
             window.require.config({
                 paths: {
@@ -74,41 +91,92 @@ inline constexpr wchar_t MONACO_HTML[] = LR"HTML(
             });
 
             window.require(["vs/editor/editor.main"], function () {
-                statusBox.textContent = "Monaco loaded";
-
-                window.editor = monaco.editor.create(
+                editor = monaco.editor.create(
                     document.getElementById("container"),
                     {
                         value: `#include <iostream>
 
 int main()
 {
-    std::cout << "Hello from Monaco!" << std::endl;
+    std::cout << "Hello from ImEditor!" << std::endl;
     return 0;
 }
 `,
                         language: "cpp",
                         theme: "vs-dark",
+
                         automaticLayout: true,
+
+                        fontFamily: "Cascadia Code, Consolas, monospace",
+                        fontSize: 15,
+                        lineHeight: 22,
+                        fontLigatures: true,
+
                         minimap: {
                             enabled: false
-                        }
+                        },
+
+                        contextmenu: false,
+                        links: false,
+
+                        hover: {
+                            enabled: false
+                        },
+
+                        quickSuggestions: false,
+                        suggestOnTriggerCharacters: false,
+
+                        parameterHints: {
+                            enabled: false
+                        },
+
+                        lightbulb: {
+                            enabled: false
+                        },
+
+                        codeLens: false,
+                        folding: false,
+                        selectionHighlight: false,
+                        occurrencesHighlight: "off",
+
+                        glyphMargin: false,
+                        roundedSelection: true,
+                        renderLineHighlight: "gutter",
+
+                        overviewRulerLanes: 0,
+                        hideCursorInOverviewRuler: true,
+
+                        scrollbar: {
+                            verticalScrollbarSize: 8,
+                            horizontalScrollbarSize: 8
+                        },
+
+                        padding: {
+                            top: 14,
+                            bottom: 14
+                        },
+
+                        cursorBlinking: "smooth",
+                        cursorSmoothCaretAnimation: "on",
+                        smoothScrolling: true
                     }
                 );
 
-                setTimeout(function () {
-                    statusBox.style.display = "none";
-                }, 1000);
-            }, function (error) {
-                statusBox.textContent = "Monaco require failed: " + error;
+                window.editor = editor;
+
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, function () {});
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, function () {});
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, function () {});
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function () {});
+                editor.addCommand(monaco.KeyCode.F1, function () {});
+                editor.addCommand(monaco.KeyCode.F3, function () {});
             });
         }
     </script>
 
     <script
         src="https://imeditor-assets.example/monaco/vs/loader.js"
-        onload="startMonaco();"
-        onerror="document.getElementById('status').textContent = 'FAILED to load loader.js';">
+        onload="startMonaco();">
     </script>
 </body>
 </html>

@@ -17,6 +17,12 @@ bool DrawEditor(const ImVec2& Display_Size, ImVec2* editorMin, ImVec2* editorMax
         ImGuiWindowFlags_NoScrollbar |
         ImGuiWindowFlags_NoScrollWithMouse;
 
+
+    ImGui::PushStyleColor(
+        ImGuiCol_WindowBg,
+        IM_COL32(32, 32, 32, 255)
+    );
+
     ImGui::Begin("ImEditor Main Window", nullptr, window_flags);
 
     float sidebarX = 0.0f;
@@ -54,12 +60,12 @@ bool DrawEditor(const ImVec2& Display_Size, ImVec2* editorMin, ImVec2* editorMax
         sidebarTopMargin,
         sidebarBottomMargin,
         sidebarRounding,
-        IM_COL32(45, 45, 55, 255)
+        IM_COL32(39, 39, 39, 255)
     );
 
     DrawBottomBar(
         bottomBarHeight,
-        IM_COL32(45, 45, 55, 255)
+        IM_COL32(39, 39, 39, 255)
     );
 
     DrawExplorer(
@@ -71,7 +77,7 @@ bool DrawEditor(const ImVec2& Display_Size, ImVec2* editorMin, ImVec2* editorMax
         explorerTopMargin,
         explorerBottomMargin,
         explorerRounding,
-        IM_COL32(45, 45, 55, 255)
+        IM_COL32(39, 39, 39, 255)
     );
 
     DrawTabBar(
@@ -82,7 +88,7 @@ bool DrawEditor(const ImVec2& Display_Size, ImVec2* editorMin, ImVec2* editorMax
         tabBarHeight,
         tabBarRightMargin,
         tabBarRounding,
-        IM_COL32(45, 45, 55, 255)
+        IM_COL32(39, 39, 39, 255)
     );
 
     bool hasEditorRect = DrawCodeEditor(
@@ -97,11 +103,14 @@ bool DrawEditor(const ImVec2& Display_Size, ImVec2* editorMin, ImVec2* editorMax
         mainPanelMarginFromBottomBar,
         mainPanelRightMargin,
         mainPanelRounding,
-        IM_COL32(35, 35, 45, 255),
+        IM_COL32(39, 39, 39, 255),
         editorMin,
         editorMax
     );
 
     ImGui::End();
+
+    ImGui::PopStyleColor();
+
     return hasEditorRect;
 }
