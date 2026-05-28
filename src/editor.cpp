@@ -37,10 +37,10 @@ void DrawEditor(const ImVec2& Display_Size)
 
     float tabBarMarginFromExplorer = 10.0f;
     float tabBarTopMargin = 10.0f;
-    float tabBarHeight = 40.0f;
+    float tabBarHeight = 50.0f;
     float tabBarRightMargin = 10.0f;
     float tabBarRounding = 8.0f;
-
+   
     float mainPanelMarginFromExplorer = 10.0f;
     float mainPanelMarginFromTabBar = 10.0f;
     float mainPanelMarginFromBottomBar = 10.0f;
