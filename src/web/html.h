@@ -14,6 +14,8 @@ inline constexpr wchar_t MONACO_HTML[] = LR"HTML(
             padding: 0;
             overflow: hidden;
             background: transparent;
+            color: white;
+            font-family: Consolas, monospace;
         }
 
         #editor-shell {
@@ -29,37 +31,84 @@ inline constexpr wchar_t MONACO_HTML[] = LR"HTML(
             width: 100%;
             height: 100%;
         }
+
+        #status {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            pointer-events: none;
+        }
     </style>
 </head>
 
 <body>
     <div id="editor-shell">
+        <div id="status">Loading loader.js...</div>
         <div id="container"></div>
     </div>
 
-    <script src="https://imeditor-assets.example/monaco/vs/loader.js"></script>
-
     <script>
-        require.config({
-            paths: {
-                vs: "https://imeditor-assets.example/monaco/vs"
-            }
-        });
+        const statusBox = document.getElementById("status");
 
-        require(["vs/editor/editor.main"], function () {
-            window.editor = monaco.editor.create(
-                document.getElementById("container"),
-                {
-                    value: "#include <iostream>\\n\\nint main()\\n{\\n    std::cout << \\"Hello from Monaco!\\" << std::endl;\\n    return 0;\\n}\\n",
-                    language: "cpp",
-                    theme: "vs-dark",
-                    automaticLayout: true,
-                    minimap: {
-                        enabled: false
-                    }
+        window.onerror = function (message, source, line, column, error) {
+            statusBox.textContent = "JS error: " + message;
+        };
+
+        function startMonaco() {
+            if (typeof window.require === "undefined") {
+                statusBox.textContent = "loader.js loaded, but window.require is undefined.";
+                return;
+            }
+
+            statusBox.textContent = "loader.js loaded. Loading Monaco...";
+
+            window.require.config({
+                paths: {
+                    vs: "https://imeditor-assets.example/monaco/vs"
                 }
-            );
-        });
+            });
+
+            window.require(["vs/editor/editor.main"], function () {
+                statusBox.textContent = "Monaco loaded";
+
+                window.editor = monaco.editor.create(
+                    document.getElementById("container"),
+                    {
+                        value: `#include <iostream>
+
+int main()
+{
+    std::cout << "Hello from Monaco!" << std::endl;
+    return 0;
+}
+`,
+                        language: "cpp",
+                        theme: "vs-dark",
+                        automaticLayout: true,
+                        minimap: {
+                            enabled: false
+                        }
+                    }
+                );
+
+                setTimeout(function () {
+                    statusBox.style.display = "none";
+                }, 1000);
+            }, function (error) {
+                statusBox.textContent = "Monaco require failed: " + error;
+            });
+        }
+    </script>
+
+    <script
+        src="https://imeditor-assets.example/monaco/vs/loader.js"
+        onload="startMonaco();"
+        onerror="document.getElementById('status').textContent = 'FAILED to load loader.js';">
     </script>
 </body>
 </html>

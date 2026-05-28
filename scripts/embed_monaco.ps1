@@ -1,5 +1,5 @@
 param(
-    [string]$InputDir = "external/monaco/vs",
+    [string]$InputDir = "assets",
     [string]$Output = "generated/embedded_monaco.h"
 )
 
@@ -20,18 +20,36 @@ $sb = [System.Text.StringBuilder]::new()
 [void]$sb.AppendLine("struct EmbeddedAsset")
 [void]$sb.AppendLine("{")
 [void]$sb.AppendLine("    const wchar_t* path;")
+[void]$sb.AppendLine("    const wchar_t* mime;")
 [void]$sb.AppendLine("    const unsigned char* data;")
 [void]$sb.AppendLine("    size_t size;")
 [void]$sb.AppendLine("};")
 [void]$sb.AppendLine("")
 
+function Get-MimeType($path) {
+    $ext = [System.IO.Path]::GetExtension($path).ToLowerInvariant()
+
+    switch ($ext) {
+        ".js"    { return "application/javascript" }
+        ".mjs"   { return "application/javascript" }
+        ".css"   { return "text/css" }
+        ".html"  { return "text/html" }
+        ".json"  { return "application/json" }
+        ".wasm"  { return "application/wasm" }
+        ".ttf"   { return "font/ttf" }
+        ".woff"  { return "font/woff" }
+        ".woff2" { return "font/woff2" }
+        ".svg"   { return "image/svg+xml" }
+        ".png"   { return "image/png" }
+        ".jpg"   { return "image/jpeg" }
+        ".jpeg"  { return "image/jpeg" }
+        default  { return "application/octet-stream" }
+    }
+}
+
 $index = 0
 
 foreach ($file in $files) {
-    $relative = $file.FullName.Substring($InputDir.Length).TrimStart('\', '/')
-    $relative = $relative.Replace('\', '/')
-    $urlPath = "/" + $relative
-
     $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
 
     [void]$sb.AppendLine("inline constexpr unsigned char monaco_asset_$index[] = {")
@@ -60,9 +78,9 @@ foreach ($file in $files) {
     $relative = $file.FullName.Substring($InputDir.Length).TrimStart('\', '/')
     $relative = $relative.Replace('\', '/')
     $urlPath = "/" + $relative
+    $mime = Get-MimeType $file.FullName
 
-    [void]$sb.AppendLine("    { L`"$urlPath`", monaco_asset_$index, sizeof(monaco_asset_$index) },")
-
+    [void]$sb.AppendLine("    { L`"$urlPath`", L`"$mime`", monaco_asset_$index, sizeof(monaco_asset_$index) },")
     $index++
 }
 

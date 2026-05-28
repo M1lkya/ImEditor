@@ -1,9 +1,41 @@
 #include "MonacoHost.h"
 #include "html.h"
+#include "embedded_monaco.h"
 
-#include <filesystem>
+#include <string>
+#include <shlwapi.h>
 
 using Microsoft::WRL::Callback;
+
+static const EmbeddedAsset* FindEmbeddedAsset(const std::wstring& path)
+{
+    for (size_t i = 0; i < kEmbeddedAssetCount; ++i)
+    {
+        if (path == kEmbeddedAssets[i].path)
+            return &kEmbeddedAssets[i];
+    }
+
+    return nullptr;
+}
+
+static std::wstring GetPathFromUri(const std::wstring& uri)
+{
+    const std::wstring prefix = L"https://imeditor-assets.example";
+
+    if (uri.rfind(prefix, 0) != 0)
+        return L"/";
+
+    std::wstring path = uri.substr(prefix.size());
+
+    size_t queryPos = path.find_first_of(L"?#");
+    if (queryPos != std::wstring::npos)
+        path.resize(queryPos);
+
+    if (path.empty())
+        path = L"/";
+
+    return path;
+}
 
 void MonacoHost::Initialize(HWND parentHwnd)
 {
@@ -18,6 +50,8 @@ void MonacoHost::Initialize(HWND parentHwnd)
             {
                 if (FAILED(result) || !env)
                     return result;
+
+                m_environment = env;
 
                 env->CreateCoreWebView2Controller(
                     m_parentHwnd,
@@ -36,7 +70,6 @@ void MonacoHost::Initialize(HWND parentHwnd)
                             if (FAILED(hr) || !m_webview)
                                 return hr;
 
-                            // Make WebView2's background transparent so CSS border-radius looks correct.
                             Microsoft::WRL::ComPtr<ICoreWebView2Controller2> controller2;
 
                             if (SUCCEEDED(m_controller.As(&controller2)) && controller2)
@@ -50,7 +83,6 @@ void MonacoHost::Initialize(HWND parentHwnd)
                                 controller2->put_DefaultBackgroundColor(transparent);
                             }
 
-                            // Enable JavaScript and web messages.
                             Microsoft::WRL::ComPtr<ICoreWebView2Settings> settings;
 
                             hr = m_webview->get_Settings(settings.GetAddressOf());
@@ -61,22 +93,76 @@ void MonacoHost::Initialize(HWND parentHwnd)
                                 settings->put_IsWebMessageEnabled(TRUE);
                             }
 
-                            // Map ./external to https://imeditor-assets.example/
-                            // So external/monaco/vs/loader.js becomes:
-                            // https://imeditor-assets.example/monaco/vs/loader.js
-                            auto assetsPath =
-                                std::filesystem::absolute("external").wstring();
+                            m_webview->AddWebResourceRequestedFilter(
+                                L"https://imeditor-assets.example/*",
+                                COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL
+                            );
 
-                            Microsoft::WRL::ComPtr<ICoreWebView2_3> webview3;
+                            m_webview->add_WebResourceRequested(
+                                Callback<ICoreWebView2WebResourceRequestedEventHandler>(
+                                    [this](
+                                        ICoreWebView2* sender,
+                                        ICoreWebView2WebResourceRequestedEventArgs* args
+                                    ) -> HRESULT
+                                    {
+                                        (void)sender;
 
-                            if (SUCCEEDED(m_webview.As(&webview3)) && webview3)
-                            {
-                                webview3->SetVirtualHostNameToFolderMapping(
-                                    L"imeditor-assets.example",
-                                    assetsPath.c_str(),
-                                    COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY
-                                );
-                            }
+                                        Microsoft::WRL::ComPtr<ICoreWebView2WebResourceRequest> request;
+                                        args->get_Request(request.GetAddressOf());
+
+                                        if (!request)
+                                            return S_OK;
+
+                                        LPWSTR rawUri = nullptr;
+                                        HRESULT requestHr = request->get_Uri(&rawUri);
+
+                                        if (FAILED(requestHr))
+                                            return requestHr;
+
+                                        std::wstring uri = rawUri ? rawUri : L"";
+
+                                        if (rawUri)
+                                            CoTaskMemFree(rawUri);
+
+                                        std::wstring path = GetPathFromUri(uri);
+                                        const EmbeddedAsset* asset = FindEmbeddedAsset(path);
+
+                                        if (!asset)
+                                            return S_OK;
+
+                                        IStream* stream = SHCreateMemStream(
+                                            asset->data,
+                                            static_cast<UINT>(asset->size)
+                                        );
+
+                                        if (!stream)
+                                            return E_FAIL;
+
+                                        std::wstring headers =
+                                            L"Content-Type: " + std::wstring(asset->mime);
+
+                                        Microsoft::WRL::ComPtr<ICoreWebView2WebResourceResponse> response;
+
+                                        HRESULT responseHr = m_environment->CreateWebResourceResponse(
+                                            stream,
+                                            200,
+                                            L"OK",
+                                            headers.c_str(),
+                                            response.GetAddressOf()
+                                        );
+
+                                        stream->Release();
+
+                                        if (FAILED(responseHr))
+                                            return responseHr;
+
+                                        args->put_Response(response.Get());
+
+                                        return S_OK;
+                                    }
+                                ).Get(),
+                                &m_webResourceRequestedToken
+                            );
 
                             m_webview->NavigateToString(MONACO_HTML);
 

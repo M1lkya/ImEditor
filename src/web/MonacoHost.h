@@ -15,6 +15,9 @@ public:
 private:
     HWND m_parentHwnd = nullptr;
 
+    EventRegistrationToken m_webResourceRequestedToken = {};
+
+    Microsoft::WRL::ComPtr<ICoreWebView2Environment> m_environment;
     Microsoft::WRL::ComPtr<ICoreWebView2Controller> m_controller;
     Microsoft::WRL::ComPtr<ICoreWebView2> m_webview;
 };

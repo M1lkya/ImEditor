@@ -2,6 +2,36 @@ cmake_minimum_required(VERSION 3.20)
 
 project(ImEditor)
 
+set(GENERATED_DIR
+    "${CMAKE_CURRENT_SOURCE_DIR}/generated"
+)
+
+file(GLOB_RECURSE MONACO_ASSET_FILES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/*"
+)
+
+set(EMBEDDED_MONACO_HEADER
+    "${GENERATED_DIR}/embedded_monaco.h"
+)
+
+add_custom_command(
+    OUTPUT "${EMBEDDED_MONACO_HEADER}"
+    COMMAND powershell
+        -ExecutionPolicy Bypass
+        -File "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_monaco.ps1"
+        -InputDir "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+        -Output "${EMBEDDED_MONACO_HEADER}"
+    DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_monaco.ps1"
+        ${MONACO_ASSET_FILES}
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMENT "Embedding Monaco assets into generated/embedded_monaco.h"
+)
+
+add_custom_target(EmbedMonaco
+    DEPENDS "${EMBEDDED_MONACO_HEADER}"
+)
+
 set(WEBVIEW2_ROOT
     "${CMAKE_CURRENT_SOURCE_DIR}/external/Microsoft.Web.WebView2"
 )
@@ -51,6 +81,12 @@ add_executable(ImEditor
     include/imgui/backends/imgui_impl_dx11.cpp
 )
 
+add_dependencies(ImEditor EmbedMonaco)
+
+target_compile_definitions(ImEditor PRIVATE
+    IMEDITOR_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets"
+)
+
 target_include_directories(ImEditor PRIVATE
     "${GENERATED_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -74,6 +110,8 @@ target_link_libraries(ImEditor PRIVATE
     d3d11
     dxgi
     d3dcompiler
+
+    shlwapi
 
     "${WEBVIEW2_LOADER_LIB}"
 )
