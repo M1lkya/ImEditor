@@ -1,7 +1,7 @@
 #pragma once
 
 #include "dx11_window.h"
-#include "MonacoHost.h"
+#include "WebViewHost.h"
 
 class App
 {
@@ -17,6 +17,6 @@ private:
 
 private:
     Dx11Window m_window;
-    MonacoHost m_monaco;
+    WebViewHost m_webView;
     bool m_done = false;
 };

@@ -20,7 +20,7 @@ bool App::Initialize()
     ::ShowWindow(m_window.hwnd, SW_SHOWDEFAULT);
     ::UpdateWindow(m_window.hwnd);
 
-    m_monaco.Initialize(m_window.hwnd);
+    m_webView.Initialize(m_window.hwnd);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -105,12 +105,12 @@ void App::RenderFrame()
         rect.right = static_cast<LONG>(editorMax.x);
         rect.bottom = static_cast<LONG>(editorMax.y);
 
-        m_monaco.SetBounds(rect);
-        m_monaco.SetVisible(true);
+        m_webView.SetBounds(rect);
+        m_webView.SetVisible(true);
     }
     else
     {
-        m_monaco.SetVisible(false);
+        m_webView.SetVisible(false);
     }
 }
 
