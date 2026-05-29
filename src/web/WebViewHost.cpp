@@ -36,13 +36,15 @@ static std::wstring GetPathFromUri(const std::wstring& uri)
     return path;
 }
 
-void WebViewHost::Initialize(HWND parentHwnd)
+void WebViewHost::Initialize(HWND parentHwnd, const std::filesystem::path& userDataFolder)
 {
     m_parentHwnd = parentHwnd;
 
+    std::wstring userDataFolderW = userDataFolder.wstring();
+
     CreateCoreWebView2EnvironmentWithOptions(
         nullptr,
-        nullptr,
+        userDataFolderW.c_str(),
         nullptr,
         Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
             [this](HRESULT result, ICoreWebView2Environment* env) -> HRESULT

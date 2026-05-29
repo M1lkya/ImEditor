@@ -5,9 +5,46 @@
 #include "imgui_impl_dx11.h"
 
 #include "editor.h"
+#include "AppPaths.h"
+
+#include "embedded_font.h"
+
+namespace
+{
+    void LoadImEditorFonts(ImGuiIO& io, float mainScale)
+    {
+        ImFontConfig fontConfig;
+        fontConfig.OversampleH = 3;
+        fontConfig.OversampleV = 2;
+        fontConfig.PixelSnapH = false;
+
+        // The font memory is compiled into the exe.
+        // ImGui should not try to free it.
+        fontConfig.FontDataOwnedByAtlas = false;
+
+        ImFont* jetBrainsMono = io.Fonts->AddFontFromMemoryTTF(
+            const_cast<unsigned char*>(kJetBrainsMonoRegular),
+            static_cast<int>(kJetBrainsMonoRegularSize),
+            16.0f * mainScale,
+            &fontConfig
+        );
+
+        if (jetBrainsMono)
+        {
+            io.FontDefault = jetBrainsMono;
+        }
+        else
+        {
+            io.Fonts->AddFontDefault();
+        }
+    }
+}
 
 bool App::Initialize()
 {
+    if (!CheckInit(m_paths))
+        return false;
+
     ImGui_ImplWin32_EnableDpiAwareness();
 
     float main_scale = ImGui_ImplWin32_GetDpiScaleForMonitor(
@@ -20,7 +57,10 @@ bool App::Initialize()
     ::ShowWindow(m_window.hwnd, SW_SHOWDEFAULT);
     ::UpdateWindow(m_window.hwnd);
 
-    m_webView.Initialize(m_window.hwnd);
+    m_webView.Initialize(
+        m_window.hwnd,
+        m_paths.webView2Folder
+    );
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -28,6 +68,12 @@ bool App::Initialize()
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+    static std::string imguiIniPath;
+    imguiIniPath = PathToUtf8(m_paths.imguiIniFile);
+    io.IniFilename = imguiIniPath.c_str();
+
+    LoadImEditorFonts(io, main_scale);
 
     ImGui::StyleColorsDark();
 
@@ -46,6 +92,7 @@ int App::Run()
     while (!m_done)
     {
         MSG msg;
+
         while (::PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE))
         {
             ::TranslateMessage(&msg);

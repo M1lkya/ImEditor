@@ -57,46 +57,67 @@ void DrawTabBar(
             ImDrawFlags_RoundCornersAll
         );
 
-        const float tabWidth = 120.0f;
-        const float tabHeight = 40.0f;
+        const float tabHeight = 30.0f;
         const float tabSpacing = 4.0f;
         const float tabStartX = 4.0f;
-        const float tabY = 5.0f;
-        const int tabCount = 5;
+        const float tabY = (childSize.y - tabHeight) * 0.5f;
 
-        float totalTabsWidth =
-            tabStartX +
-            tabCount * tabWidth +
-            (tabCount - 1) * tabSpacing +
-            4.0f;
+        const char* tabNames[] = {
+            "main.cpp",
+            "editor.cpp",
+            "WebViewHost.cpp",
+            "DrawTabBar.cpp",
+            "really_long_file_name.hpp"
+        };
+
+        const int tabCount = sizeof(tabNames) / sizeof(tabNames[0]);
+
+        float totalTabsWidth = tabStartX + 4.0f;
+
+        for (int i = 0; i < tabCount; ++i)
+        {
+            totalTabsWidth += CalculateTabWidth(tabNames[i]);
+
+            if (i < tabCount - 1)
+                totalTabsWidth += tabSpacing;
+        }
 
         float maxScrollX = std::max(0.0f, totalTabsWidth - childSize.x);
-
         scrollX = std::clamp(scrollX, 0.0f, maxScrollX);
 
         draw->PushClipRect(childMin, childMax, true);
+
+        float currentX = tabStartX;
 
         for (int i = 0; i < tabCount; ++i)
         {
             char id[32];
             sprintf_s(id, sizeof(id), "Tab%d", i + 1);
 
-            float tabX =
-                tabStartX +
-                i * (tabWidth + tabSpacing) -
-                scrollX;
+            float tabWidth = CalculateTabWidth(tabNames[i]);
+            float tabX = currentX - scrollX;
 
-            if (tabX + tabWidth < 0.0f)
-                continue;
+            if (tabX + tabWidth >= 0.0f && tabX <= childSize.x)
+            {
+                TabResult tab = DrawTab(
+                    id,
+                    ImVec2(tabX, tabY),
+                    tabNames[i],
+                    tabHeight
+                );
 
-            if (tabX > childSize.x)
-                continue;
+                if (tab.clicked)
+                {
+                    // Later: select this tab.
+                }
 
-            DrawTab(
-                id,
-                ImVec2(tabX, tabY),
-                ImVec2(tabWidth, tabHeight)
-            );
+                if (tab.closeClicked)
+                {
+                    // Later: close/remove this tab.
+                }
+            }
+
+            currentX += tabWidth + tabSpacing;
         }
 
         draw->PopClipRect();
@@ -105,7 +126,7 @@ void DrawTabBar(
         {
             const float trackPadding = 10.0f;
             const float trackHeight = 3.0f;
-            const float trackY = childSize.y - 6.0f;
+            const float trackY = childSize.y - 5.0f;
 
             float trackWidth = childSize.x - trackPadding * 2.0f;
 
@@ -117,13 +138,10 @@ void DrawTabBar(
                 handleWidth = std::clamp(handleWidth, 28.0f, trackWidth);
 
                 float handleTravel = trackWidth - handleWidth;
-
                 float handleX = trackPadding;
 
                 if (maxScrollX > 0.0f && handleTravel > 0.0f)
-                {
                     handleX += (scrollX / maxScrollX) * handleTravel;
-                }
 
                 ImVec2 trackMin = ImVec2(
                     childMin.x + trackPadding,
@@ -168,14 +186,13 @@ void DrawTabBar(
                 if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
                 {
                     float mouseX = ImGui::GetIO().MousePos.x;
-                    float localMouseX = mouseX - trackMin.x - handleWidth * 0.5f;
+                    float localMouseX =
+                        mouseX - trackMin.x - handleWidth * 0.5f;
 
                     float t = 0.0f;
 
                     if (handleTravel > 0.0f)
-                    {
                         t = localMouseX / handleTravel;
-                    }
 
                     t = std::clamp(t, 0.0f, 1.0f);
                     scrollX = t * maxScrollX;

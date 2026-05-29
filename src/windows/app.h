@@ -2,6 +2,9 @@
 
 #include "dx11_window.h"
 #include "WebViewHost.h"
+#include "AppPaths.h"
+
+#include <string>
 
 class App
 {
@@ -18,5 +21,9 @@ private:
 private:
     Dx11Window m_window;
     WebViewHost m_webView;
+
+    AppPaths m_paths;
+    std::string m_imguiIniPath;
+
     bool m_done = false;
 };

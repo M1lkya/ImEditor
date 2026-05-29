@@ -87,6 +87,29 @@ add_custom_target(EmbedFrontend
 
 add_dependencies(EmbedFrontend BuildFrontend)
 
+set(EMBEDDED_FONT_HEADER
+    "${GENERATED_DIR}/embedded_font.h"
+)
+
+add_custom_command(
+    OUTPUT "${EMBEDDED_FONT_HEADER}"
+    COMMAND "${POWERSHELL_EXECUTABLE}"
+        -ExecutionPolicy Bypass
+        -File "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_font.ps1"
+        -InputFile "${CMAKE_CURRENT_SOURCE_DIR}/fonts/JetBrainsMono-Regular.ttf"
+        -Output "${EMBEDDED_FONT_HEADER}"
+    DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_font.ps1"
+        "${CMAKE_CURRENT_SOURCE_DIR}/fonts/JetBrainsMono-Regular.ttf"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMENT "Embedding JetBrains Mono font into generated/embedded_font.h"
+    VERBATIM
+)
+
+add_custom_target(EmbedFont
+    DEPENDS "${EMBEDDED_FONT_HEADER}"
+)
+
 set(WEBVIEW2_ROOT
     "${CMAKE_CURRENT_SOURCE_DIR}/external/Microsoft.Web.WebView2"
 )
@@ -123,6 +146,8 @@ add_executable(ImEditor
 
     src/web/WebViewHost.cpp
 
+    src/core/appPaths.cpp
+
     include/imgui/imgui.cpp
     include/imgui/imgui_draw.cpp
     include/imgui/imgui_tables.cpp
@@ -134,6 +159,7 @@ add_executable(ImEditor
 )
 
 add_dependencies(ImEditor EmbedFrontend)
+add_dependencies(ImEditor EmbedFont)
 
 target_include_directories(ImEditor PRIVATE
     "${GENERATED_DIR}"
@@ -151,6 +177,8 @@ target_include_directories(ImEditor PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/windows/dx11"
 
     "${CMAKE_CURRENT_SOURCE_DIR}/src/web"
+
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/core"
 
     "${WEBVIEW2_INCLUDE_DIR}"
 )

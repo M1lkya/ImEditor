@@ -1,7 +1,20 @@
+#pragma once
+
 #include "imgui.h"
 
-bool DrawTab(
+struct TabResult
+{
+    bool clicked = false;
+    bool closeClicked = false;
+    float width = 0.0f;
+};
+
+float CalculateTabWidth(const char* fileName);
+
+TabResult DrawTab(
     const char* id,
     ImVec2 localPosition,
-    ImVec2 size
+    const char* fileName,
+    float tabHeight = 30.0f,
+    ImTextureID iconTexture = 0
 );

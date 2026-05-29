@@ -4,11 +4,12 @@
 #include <wrl.h>
 #include <wrl/client.h>
 #include <WebView2.h>
+#include <filesystem>
 
 class WebViewHost
 {
 public:
-    void Initialize(HWND parentHwnd);
+    void Initialize(HWND parentHwnd, const std::filesystem::path& userDataFolder);
     void SetBounds(const RECT& bounds);
     void SetVisible(bool visible);
 
