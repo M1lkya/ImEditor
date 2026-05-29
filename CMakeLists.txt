@@ -110,6 +110,29 @@ add_custom_target(EmbedFont
     DEPENDS "${EMBEDDED_FONT_HEADER}"
 )
 
+set(EMBEDDED_CODICON_HEADER
+    "${GENERATED_DIR}/embedded_codicon.h"
+)
+
+add_custom_command(
+    OUTPUT "${EMBEDDED_CODICON_HEADER}"
+    COMMAND "${POWERSHELL_EXECUTABLE}"
+        -ExecutionPolicy Bypass
+        -File "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_codicon.ps1"
+        -InputFile "${CMAKE_CURRENT_SOURCE_DIR}/fonts/codicon.ttf"
+        -Output "${EMBEDDED_CODICON_HEADER}"
+    DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_codicon.ps1"
+        "${CMAKE_CURRENT_SOURCE_DIR}/fonts/codicon.ttf"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMENT "Embedding Codicon font into generated/embedded_codicon.h"
+    VERBATIM
+)
+
+add_custom_target(EmbedCodicon
+    DEPENDS "${EMBEDDED_CODICON_HEADER}"
+)
+
 set(WEBVIEW2_ROOT
     "${CMAKE_CURRENT_SOURCE_DIR}/external/Microsoft.Web.WebView2"
 )
@@ -143,6 +166,7 @@ add_executable(ImEditor
     src/ui/DrawCodeEditor.cpp
 
     src/ui/components/tabs.cpp
+    src/ui/components/SideBarButton.cpp
 
     src/web/WebViewHost.cpp
 
@@ -160,6 +184,7 @@ add_executable(ImEditor
 
 add_dependencies(ImEditor EmbedFrontend)
 add_dependencies(ImEditor EmbedFont)
+add_dependencies(ImEditor EmbedCodicon)
 
 target_include_directories(ImEditor PRIVATE
     "${GENERATED_DIR}"

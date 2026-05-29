@@ -8,6 +8,7 @@
 #include "AppPaths.h"
 
 #include "embedded_font.h"
+#include "embedded_codicon.h"
 
 namespace
 {
@@ -37,6 +38,28 @@ namespace
         {
             io.Fonts->AddFontDefault();
         }
+
+        // Codicons live in the private-use Unicode range.
+        // Merge them into the main JetBrains Mono font so text and icons
+        // can be drawn with the same ImGui font.
+        static const ImWchar codiconRanges[] = {
+            0xE000, 0xF8FF,
+            0
+        };
+
+        ImFontConfig codiconConfig;
+        codiconConfig.MergeMode = true;
+        codiconConfig.PixelSnapH = true;
+        codiconConfig.FontDataOwnedByAtlas = false;
+        codiconConfig.GlyphMinAdvanceX = 16.0f * mainScale;
+
+        io.Fonts->AddFontFromMemoryTTF(
+            const_cast<unsigned char*>(kCodicon),
+            static_cast<int>(kCodiconSize),
+            16.0f * mainScale,
+            &codiconConfig,
+            codiconRanges
+        );
     }
 }
 
