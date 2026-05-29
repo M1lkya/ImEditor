@@ -146,7 +146,7 @@ add_executable(ImEditor
 
     src/web/WebViewHost.cpp
 
-    src/core/appPaths.cpp
+    src/core/AppPaths.cpp
 
     include/imgui/imgui.cpp
     include/imgui/imgui_draw.cpp
@@ -189,6 +189,7 @@ target_link_libraries(ImEditor PRIVATE
     d3dcompiler
 
     shlwapi
+    dwmapi
 
     "${WEBVIEW2_LOADER_LIB}"
 )

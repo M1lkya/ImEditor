@@ -12,7 +12,7 @@ float CalculateTabWidth(const char* fileName)
     const float iconSize = 15.0f;
     const float iconTextGap = 8.0f;
     const float textCloseGap = 12.0f;
-    const float closeButtonSize = 16.0f;
+    const float closeButtonSize = 18.0f;
     const float rightPadding = 8.0f;
 
     ImVec2 textSize = ImGui::CalcTextSize(fileName);
@@ -57,9 +57,13 @@ TabResult DrawTab(
 
     ImDrawList* draw = ImGui::GetWindowDrawList();
 
-    ImU32 tabColor = hovered
-        ? IM_COL32(255, 170, 40, 255)
-        : IM_COL32(255, 145, 0, 255);
+    const ImU32 tabColor = hovered
+        ? IM_COL32(52, 52, 52, 255)
+        : IM_COL32(45, 45, 45, 255);
+
+    const ImU32 tabBorderColor = hovered
+        ? IM_COL32(78, 78, 78, 220)
+        : IM_COL32(60, 60, 60, 160);
 
     draw->AddRectFilled(
         min,
@@ -69,12 +73,28 @@ TabResult DrawTab(
         ImDrawFlags_RoundCornersAll
     );
 
+    draw->AddRect(
+        min,
+        max,
+        tabBorderColor,
+        6.0f,
+        ImDrawFlags_RoundCornersAll,
+        1.0f
+    );
+
+    draw->AddLine(
+        ImVec2(min.x + 6.0f, min.y + 1.0f),
+        ImVec2(max.x - 6.0f, min.y + 1.0f),
+        IM_COL32(90, 90, 90, hovered ? 160 : 90),
+        1.0f
+    );
+
     const float centerY = min.y + tabHeight * 0.5f;
 
     const float leftPadding = 10.0f;
     const float iconSize = 15.0f;
     const float iconTextGap = 8.0f;
-    const float closeButtonSize = 16.0f;
+    const float closeButtonSize = 18.0f;
 
     float textAreaMinX = min.x + leftPadding;
 
@@ -99,7 +119,7 @@ TabResult DrawTab(
             draw->AddRectFilled(
                 iconMin,
                 iconMax,
-                IM_COL32(255, 220, 120, 255),
+                IM_COL32(95, 95, 95, 255),
                 3.0f
             );
         }
@@ -108,7 +128,7 @@ TabResult DrawTab(
     }
 
     ImVec2 closeMin = ImVec2(
-        max.x - closeButtonSize - 8.0f,
+        max.x - closeButtonSize - 7.0f,
         centerY - closeButtonSize * 0.5f
     );
 
@@ -117,7 +137,9 @@ TabResult DrawTab(
         closeMin.y + closeButtonSize
     );
 
-    bool closeHovered = ImGui::IsMouseHoveringRect(closeMin, closeMax);
+    bool closeHovered =
+        hovered &&
+        ImGui::IsMouseHoveringRect(closeMin, closeMax);
 
     result.closeClicked =
         closeHovered &&
@@ -137,37 +159,60 @@ TabResult DrawTab(
         centerY - textSize.y * 0.5f
     );
 
+    draw->PushClipRect(
+        ImVec2(textAreaMinX, min.y),
+        ImVec2(textAreaMaxX, max.y),
+        true
+    );
+
     draw->AddText(
         textPos,
-        IM_COL32(35, 35, 35, 255),
+        hovered
+            ? IM_COL32(245, 245, 245, 255)
+            : IM_COL32(215, 215, 215, 255),
         fileName
     );
 
-    ImU32 closeColor = closeHovered
-        ? IM_COL32(80, 80, 80, 220)
-        : IM_COL32(50, 50, 50, 150);
+    draw->PopClipRect();
 
-    draw->AddRectFilled(
-        closeMin,
-        closeMax,
-        closeColor,
-        4.0f
-    );
+    if (closeHovered)
+    {
+        draw->AddRectFilled(
+            closeMin,
+            closeMax,
+            IM_COL32(78, 78, 78, 230),
+            5.0f,
+            ImDrawFlags_RoundCornersAll
+        );
 
-    const float xPad = 4.5f;
+        draw->AddRect(
+            closeMin,
+            closeMax,
+            IM_COL32(105, 105, 105, 180),
+            5.0f,
+            ImDrawFlags_RoundCornersAll,
+            1.0f
+        );
+    }
+
+    const float xPad = 4.75f;
+
+    const ImU32 xColor = closeHovered
+        ? IM_COL32(255, 255, 255, 255)
+        : IM_COL32(165, 165, 165, 230);
 
     draw->AddLine(
         ImVec2(closeMin.x + xPad, closeMin.y + xPad),
         ImVec2(closeMax.x - xPad, closeMax.y - xPad),
-        IM_COL32(240, 240, 240, 255),
-        1.4f
+        xColor,
+        closeHovered ? 1.7f : 1.5f
     );
 
     draw->AddLine(
         ImVec2(closeMax.x - xPad, closeMin.y + xPad),
         ImVec2(closeMin.x + xPad, closeMax.y - xPad),
-        IM_COL32(240, 240, 240, 255),
-        1.4f
+        xColor,
+        closeHovered ? 1.7f : 1.5f
     );
 
     return result;

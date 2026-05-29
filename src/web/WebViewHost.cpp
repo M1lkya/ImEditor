@@ -36,6 +36,74 @@ static std::wstring GetPathFromUri(const std::wstring& uri)
     return path;
 }
 
+static bool IsKeyDownEvent(COREWEBVIEW2_KEY_EVENT_KIND kind)
+{
+    return
+        kind == COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN ||
+        kind == COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN;
+}
+
+static bool ShouldBlockBrowserShortcut(UINT virtualKey)
+{
+    const bool ctrl =
+        (::GetKeyState(VK_CONTROL) & 0x8000) != 0;
+
+    const bool shift =
+        (::GetKeyState(VK_SHIFT) & 0x8000) != 0;
+
+    const bool alt =
+        (::GetKeyState(VK_MENU) & 0x8000) != 0;
+
+    // DevTools shortcuts.
+    if (virtualKey == VK_F12)
+        return true;
+
+    if (ctrl && shift)
+    {
+        switch (virtualKey)
+        {
+        case 'I': // DevTools
+        case 'J': // Console
+        case 'C': // Inspect element picker
+            return true;
+        }
+    }
+
+    // Browser navigation / page commands.
+    if (virtualKey == VK_F5)
+        return true;
+
+    if (ctrl)
+    {
+        switch (virtualKey)
+        {
+        case 'R': // Refresh
+        case 'S': // Save page as
+        case 'P': // Print
+        case 'O': // Open
+        case 'N': // New window
+        case 'T': // New tab
+        case 'W': // Close tab/window
+        case 'L': // Address bar
+        case 'U': // View source
+            return true;
+        }
+    }
+
+    // Browser back / forward.
+    if (alt)
+    {
+        switch (virtualKey)
+        {
+        case VK_LEFT:
+        case VK_RIGHT:
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void WebViewHost::Initialize(HWND parentHwnd, const std::filesystem::path& userDataFolder)
 {
     m_parentHwnd = parentHwnd;
@@ -84,6 +152,43 @@ void WebViewHost::Initialize(HWND parentHwnd, const std::filesystem::path& userD
                                 controller2->put_DefaultBackgroundColor(transparent);
                             }
 
+                            EventRegistrationToken acceleratorKeyPressedToken = {};
+
+                            m_controller->add_AcceleratorKeyPressed(
+                                Callback<ICoreWebView2AcceleratorKeyPressedEventHandler>(
+                                    [](
+                                        ICoreWebView2Controller* sender,
+                                        ICoreWebView2AcceleratorKeyPressedEventArgs* args
+                                    ) -> HRESULT
+                                    {
+                                        (void)sender;
+
+                                        if (!args)
+                                            return S_OK;
+
+                                        COREWEBVIEW2_KEY_EVENT_KIND kind;
+                                        HRESULT kindHr = args->get_KeyEventKind(&kind);
+
+                                        if (FAILED(kindHr) || !IsKeyDownEvent(kind))
+                                            return S_OK;
+
+                                        UINT virtualKey = 0;
+                                        HRESULT keyHr = args->get_VirtualKey(&virtualKey);
+
+                                        if (FAILED(keyHr))
+                                            return keyHr;
+
+                                        if (ShouldBlockBrowserShortcut(virtualKey))
+                                        {
+                                            args->put_Handled(TRUE);
+                                        }
+
+                                        return S_OK;
+                                    }
+                                ).Get(),
+                                &acceleratorKeyPressedToken
+                            );
+
                             Microsoft::WRL::ComPtr<ICoreWebView2Settings> settings;
 
                             hr = m_webview->get_Settings(settings.GetAddressOf());
@@ -92,6 +197,12 @@ void WebViewHost::Initialize(HWND parentHwnd, const std::filesystem::path& userD
                             {
                                 settings->put_IsScriptEnabled(TRUE);
                                 settings->put_IsWebMessageEnabled(TRUE);
+
+                                // Disable the WebView2 browser right-click menu.
+                                settings->put_AreDefaultContextMenusEnabled(FALSE);
+
+                                // Disable DevTools / Inspect Element.
+                                settings->put_AreDevToolsEnabled(FALSE);
                             }
 
                             m_webview->AddWebResourceRequestedFilter(
