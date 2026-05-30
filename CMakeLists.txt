@@ -154,6 +154,8 @@ set(WEBVIEW2_LOADER_LIB
 add_executable(ImEditor
     src/main.cpp
 
+    src/EditorState.cpp
+
     src/windows/app.cpp
     src/windows/dx11/dx11_window.cpp
 
