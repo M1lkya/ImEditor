@@ -1,6 +1,7 @@
 #include "ui.h"
 
 bool DrawCodeEditor(
+    const EditorState& state,
     const char* id,
     float explorerX,
     float explorerWidth,
@@ -63,6 +64,19 @@ bool DrawCodeEditor(
         rounding,
         ImDrawFlags_RoundCornersAll
     );
+
+    if (!HasActiveFile(state))
+    {
+        const char* message = state.hasWorkspace
+            ? "Click a file in the explorer to open it."
+            : "Open a workspace folder to start editing.";
+
+        draw->AddText(
+            ImVec2(min.x + 16.0f, min.y + 16.0f),
+            IM_COL32(170, 170, 170, 255),
+            message
+        );
+    }
 
     ImGui::Dummy(size);
 

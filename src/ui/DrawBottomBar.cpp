@@ -1,6 +1,7 @@
 #include "ui.h"
 
 void DrawBottomBar(
+    const EditorState& state,
     float height,
     ImU32 color
 )
@@ -24,5 +25,21 @@ void DrawBottomBar(
         min,
         max,
         color
+    );
+
+    std::string text = state.statusMessage;
+
+    if (HasActiveFile(state))
+    {
+        const EditorOpenFile* file = GetActiveOpenFile(state);
+
+        if (file && file->dirty)
+            text += "  •  Ctrl+S to save";
+    }
+
+    draw->AddText(
+        ImVec2(min.x + 10.0f, min.y + 3.0f),
+        IM_COL32(190, 190, 190, 255),
+        text.c_str()
     );
 }

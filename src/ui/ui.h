@@ -1,22 +1,11 @@
 #pragma once
 
 #include "imgui.h"
+#include "EditorState.h"
 
-enum class ExplorerPage
-{
-    Files,
-    SourceControl,
-    Extensions,
-    Settings
-};
-
-struct SideBarState
-{
-    ExplorerPage activePage = ExplorerPage::Files;
-    bool explorerOpen = true;
-};
-
-SideBarState DrawSideBar(
+void DrawSideBar(
+    EditorState& state,
+    EditorUiIntent* intent,
     const char* id,
     float x,
     float width,
@@ -27,13 +16,15 @@ SideBarState DrawSideBar(
 );
 
 void DrawBottomBar(
+    const EditorState& state,
     float height,
     ImU32 color
 );
 
 void DrawExplorer(
+    EditorState& state,
+    EditorUiIntent* intent,
     const char* id,
-    ExplorerPage page,
     float sidebarX,
     float sidebarWidth,
     float marginFromSideBar,
@@ -45,6 +36,8 @@ void DrawExplorer(
 );
 
 void DrawTabBar(
+    EditorState& state,
+    EditorUiIntent* intent,
     float explorerX,
     float explorerWidth,
     float marginFromExplorer,
@@ -56,6 +49,7 @@ void DrawTabBar(
 );
 
 bool DrawCodeEditor(
+    const EditorState& state,
     const char* id,
     float explorerX,
     float explorerWidth,

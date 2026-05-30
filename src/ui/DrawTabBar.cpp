@@ -3,8 +3,11 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <string>
 
 void DrawTabBar(
+    EditorState& state,
+    EditorUiIntent* intent,
     float explorerX,
     float explorerWidth,
     float marginFromExplorer,
@@ -15,8 +18,6 @@ void DrawTabBar(
     ImU32 color
 )
 {
-    static float scrollX = 0.0f;
-
     ImVec2 windowSize = ImGui::GetWindowSize();
 
     float x = explorerX + explorerWidth + marginFromExplorer;
@@ -57,64 +58,91 @@ void DrawTabBar(
             ImDrawFlags_RoundCornersAll
         );
 
+        float tabsVisibleWidth = childSize.x;
+
+        if (tabsVisibleWidth < 0.0f)
+            tabsVisibleWidth = 0.0f;
+
         const float tabHeight = 30.0f;
         const float tabSpacing = 4.0f;
         const float tabStartX = 4.0f;
         const float tabY = (childSize.y - tabHeight) * 0.5f;
 
-        const char* tabNames[] = {
-            "main.cpp",
-            "editor.cpp",
-            "WebViewHost.cpp",
-            "DrawTabBar.cpp",
-            "really_long_file_name.hpp"
-        };
-
-        const int tabCount = sizeof(tabNames) / sizeof(tabNames[0]);
-
         float totalTabsWidth = tabStartX + 4.0f;
 
-        for (int i = 0; i < tabCount; ++i)
+        for (const EditorOpenFile& file : state.openFiles)
         {
-            totalTabsWidth += CalculateTabWidth(tabNames[i]);
+            std::string label = file.title;
 
-            if (i < tabCount - 1)
-                totalTabsWidth += tabSpacing;
+            if (file.dirty)
+                label += " *";
+
+            totalTabsWidth += CalculateTabWidth(label.c_str());
+            totalTabsWidth += tabSpacing;
         }
 
-        float maxScrollX = std::max(0.0f, totalTabsWidth - childSize.x);
-        scrollX = std::clamp(scrollX, 0.0f, maxScrollX);
+        float maxScrollX = std::max(0.0f, totalTabsWidth - tabsVisibleWidth);
+        state.tabScrollX = std::clamp(state.tabScrollX, 0.0f, maxScrollX);
 
-        draw->PushClipRect(childMin, childMax, true);
+        ImVec2 clipMin = childMin;
+        ImVec2 clipMax = ImVec2(childMin.x + tabsVisibleWidth, childMax.y);
+
+        draw->PushClipRect(clipMin, clipMax, true);
 
         float currentX = tabStartX;
 
-        for (int i = 0; i < tabCount; ++i)
+        for (int i = 0; i < static_cast<int>(state.openFiles.size()); ++i)
         {
-            char id[32];
+            const EditorOpenFile& file = state.openFiles[i];
+
+            std::string label = file.title;
+
+            if (file.dirty)
+                label += " *";
+
+            char id[64];
             sprintf_s(id, sizeof(id), "Tab%d", i + 1);
 
-            float tabWidth = CalculateTabWidth(tabNames[i]);
-            float tabX = currentX - scrollX;
+            float tabWidth = CalculateTabWidth(label.c_str());
+            float tabX = currentX - state.tabScrollX;
 
-            if (tabX + tabWidth >= 0.0f && tabX <= childSize.x)
+            if (tabX + tabWidth >= 0.0f && tabX <= tabsVisibleWidth)
             {
                 TabResult tab = DrawTab(
                     id,
                     ImVec2(tabX, tabY),
-                    tabNames[i],
+                    label.c_str(),
                     tabHeight
                 );
 
-                if (tab.clicked)
+                if (i == state.activeFileIndex)
                 {
-                    // Later: select this tab.
+                    ImVec2 tabMin = ImVec2(childMin.x + tabX, childMin.y + tabY);
+                    ImVec2 tabMax = ImVec2(tabMin.x + tabWidth, tabMin.y + tabHeight);
+
+                    draw->AddRect(
+                        tabMin,
+                        tabMax,
+                        IM_COL32(167, 139, 250, 220),
+                        6.0f,
+                        ImDrawFlags_RoundCornersAll,
+                        1.5f
+                    );
                 }
 
                 if (tab.closeClicked)
                 {
-                    // Later: close/remove this tab.
+                    if (intent)
+                        intent->closeTabIndex = i;
                 }
+                else if (tab.clicked)
+                {
+                    if (intent)
+                        intent->selectTabIndex = i;
+                }
+
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", file.displayPath.c_str());
             }
 
             currentX += tabWidth + tabSpacing;
@@ -122,18 +150,18 @@ void DrawTabBar(
 
         draw->PopClipRect();
 
-        if (maxScrollX > 0.0f)
+        if (maxScrollX > 0.0f && tabsVisibleWidth > 0.0f)
         {
             const float trackPadding = 10.0f;
             const float trackHeight = 3.0f;
             const float trackY = childSize.y - 5.0f;
 
-            float trackWidth = childSize.x - trackPadding * 2.0f;
+            float trackWidth = tabsVisibleWidth - trackPadding * 2.0f;
 
             if (trackWidth > 0.0f)
             {
                 float handleWidth =
-                    trackWidth * (childSize.x / totalTabsWidth);
+                    trackWidth * (tabsVisibleWidth / totalTabsWidth);
 
                 handleWidth = std::clamp(handleWidth, 28.0f, trackWidth);
 
@@ -141,7 +169,7 @@ void DrawTabBar(
                 float handleX = trackPadding;
 
                 if (maxScrollX > 0.0f && handleTravel > 0.0f)
-                    handleX += (scrollX / maxScrollX) * handleTravel;
+                    handleX += (state.tabScrollX / maxScrollX) * handleTravel;
 
                 ImVec2 trackMin = ImVec2(
                     childMin.x + trackPadding,
@@ -195,7 +223,7 @@ void DrawTabBar(
                         t = localMouseX / handleTravel;
 
                     t = std::clamp(t, 0.0f, 1.0f);
-                    scrollX = t * maxScrollX;
+                    state.tabScrollX = t * maxScrollX;
                 }
 
                 if (ImGui::IsWindowHovered())
@@ -204,11 +232,20 @@ void DrawTabBar(
 
                     if (wheel != 0.0f)
                     {
-                        scrollX -= wheel * 40.0f;
-                        scrollX = std::clamp(scrollX, 0.0f, maxScrollX);
+                        state.tabScrollX -= wheel * 40.0f;
+                        state.tabScrollX = std::clamp(state.tabScrollX, 0.0f, maxScrollX);
                     }
                 }
             }
+        }
+
+        if (state.openFiles.empty())
+        {
+            draw->AddText(
+                ImVec2(childMin.x + 12.0f, childMin.y + 12.0f),
+                IM_COL32(150, 150, 150, 255),
+                "No open files"
+            );
         }
     }
 

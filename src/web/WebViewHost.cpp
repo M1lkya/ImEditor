@@ -6,102 +6,177 @@
 
 using Microsoft::WRL::Callback;
 
-static const EmbeddedAsset* FindEmbeddedAsset(const std::wstring& path)
+namespace
 {
-    for (size_t i = 0; i < kEmbeddedAssetCount; ++i)
+    std::string WideToUtf8(const wchar_t* wide)
     {
-        if (path == kEmbeddedAssets[i].path)
-            return &kEmbeddedAssets[i];
+        if (!wide || !wide[0])
+            return {};
+
+        int size = WideCharToMultiByte(
+            CP_UTF8,
+            0,
+            wide,
+            -1,
+            nullptr,
+            0,
+            nullptr,
+            nullptr
+        );
+
+        if (size <= 0)
+            return {};
+
+        std::string result;
+        result.resize(static_cast<size_t>(size - 1));
+
+        WideCharToMultiByte(
+            CP_UTF8,
+            0,
+            wide,
+            -1,
+            result.data(),
+            size,
+            nullptr,
+            nullptr
+        );
+
+        return result;
     }
 
-    return nullptr;
+    std::wstring Utf8ToWide(const std::string& utf8)
+    {
+        if (utf8.empty())
+            return {};
+
+        int size = MultiByteToWideChar(
+            CP_UTF8,
+            0,
+            utf8.data(),
+            static_cast<int>(utf8.size()),
+            nullptr,
+            0
+        );
+
+        if (size <= 0)
+            return {};
+
+        std::wstring result;
+        result.resize(static_cast<size_t>(size));
+
+        MultiByteToWideChar(
+            CP_UTF8,
+            0,
+            utf8.data(),
+            static_cast<int>(utf8.size()),
+            result.data(),
+            size
+        );
+
+        return result;
+    }
+
+    static const EmbeddedAsset* FindEmbeddedAsset(const std::wstring& path)
+    {
+        for (size_t i = 0; i < kEmbeddedAssetCount; ++i)
+        {
+            if (path == kEmbeddedAssets[i].path)
+                return &kEmbeddedAssets[i];
+        }
+
+        return nullptr;
+    }
+
+    static std::wstring GetPathFromUri(const std::wstring& uri)
+    {
+        const std::wstring prefix = L"https://imeditor-assets.example";
+
+        if (uri.rfind(prefix, 0) != 0)
+            return L"/index.html";
+
+        std::wstring path = uri.substr(prefix.size());
+
+        size_t queryPos = path.find_first_of(L"?#");
+        if (queryPos != std::wstring::npos)
+            path.resize(queryPos);
+
+        if (path.empty() || path == L"/")
+            path = L"/index.html";
+
+        return path;
+    }
+
+    static bool IsKeyDownEvent(COREWEBVIEW2_KEY_EVENT_KIND kind)
+    {
+        return
+            kind == COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN ||
+            kind == COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN;
+    }
+
+    static bool ShouldBlockBrowserShortcut(UINT virtualKey)
+    {
+        const bool ctrl =
+            (::GetKeyState(VK_CONTROL) & 0x8000) != 0;
+
+        const bool shift =
+            (::GetKeyState(VK_SHIFT) & 0x8000) != 0;
+
+        const bool alt =
+            (::GetKeyState(VK_MENU) & 0x8000) != 0;
+
+        if (virtualKey == VK_F12)
+            return true;
+
+        if (ctrl && shift)
+        {
+            switch (virtualKey)
+            {
+            case 'I':
+            case 'J':
+            case 'C':
+                return true;
+            }
+        }
+
+        if (virtualKey == VK_F5)
+            return true;
+
+        if (ctrl)
+        {
+            switch (virtualKey)
+            {
+            case 'R':
+            case 'P':
+            case 'O':
+            case 'N':
+            case 'T':
+            case 'W':
+            case 'L':
+            case 'U':
+                return true;
+
+            case 'S':
+                return false;
+            }
+        }
+
+        if (alt)
+        {
+            switch (virtualKey)
+            {
+            case VK_LEFT:
+            case VK_RIGHT:
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
 
-static std::wstring GetPathFromUri(const std::wstring& uri)
+void WebViewHost::SetMessageHandler(MessageHandler handler)
 {
-    const std::wstring prefix = L"https://imeditor-assets.example";
-
-    if (uri.rfind(prefix, 0) != 0)
-        return L"/index.html";
-
-    std::wstring path = uri.substr(prefix.size());
-
-    size_t queryPos = path.find_first_of(L"?#");
-    if (queryPos != std::wstring::npos)
-        path.resize(queryPos);
-
-    if (path.empty() || path == L"/")
-        path = L"/index.html";
-
-    return path;
-}
-
-static bool IsKeyDownEvent(COREWEBVIEW2_KEY_EVENT_KIND kind)
-{
-    return
-        kind == COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN ||
-        kind == COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN;
-}
-
-static bool ShouldBlockBrowserShortcut(UINT virtualKey)
-{
-    const bool ctrl =
-        (::GetKeyState(VK_CONTROL) & 0x8000) != 0;
-
-    const bool shift =
-        (::GetKeyState(VK_SHIFT) & 0x8000) != 0;
-
-    const bool alt =
-        (::GetKeyState(VK_MENU) & 0x8000) != 0;
-
-    // DevTools shortcuts.
-    if (virtualKey == VK_F12)
-        return true;
-
-    if (ctrl && shift)
-    {
-        switch (virtualKey)
-        {
-        case 'I': // DevTools
-        case 'J': // Console
-        case 'C': // Inspect element picker
-            return true;
-        }
-    }
-
-    // Browser navigation / page commands.
-    if (virtualKey == VK_F5)
-        return true;
-
-    if (ctrl)
-    {
-        switch (virtualKey)
-        {
-        case 'R': // Refresh
-        case 'S': // Save page as
-        case 'P': // Print
-        case 'O': // Open
-        case 'N': // New window
-        case 'T': // New tab
-        case 'W': // Close tab/window
-        case 'L': // Address bar
-        case 'U': // View source
-            return true;
-        }
-    }
-
-    // Browser back / forward.
-    if (alt)
-    {
-        switch (virtualKey)
-        {
-        case VK_LEFT:
-        case VK_RIGHT:
-            return true;
-        }
-    }
-
-    return false;
+    m_messageHandler = std::move(handler);
 }
 
 void WebViewHost::Initialize(HWND parentHwnd, const std::filesystem::path& userDataFolder)
@@ -152,8 +227,6 @@ void WebViewHost::Initialize(HWND parentHwnd, const std::filesystem::path& userD
                                 controller2->put_DefaultBackgroundColor(transparent);
                             }
 
-                            EventRegistrationToken acceleratorKeyPressedToken = {};
-
                             m_controller->add_AcceleratorKeyPressed(
                                 Callback<ICoreWebView2AcceleratorKeyPressedEventHandler>(
                                     [](
@@ -179,14 +252,12 @@ void WebViewHost::Initialize(HWND parentHwnd, const std::filesystem::path& userD
                                             return keyHr;
 
                                         if (ShouldBlockBrowserShortcut(virtualKey))
-                                        {
                                             args->put_Handled(TRUE);
-                                        }
 
                                         return S_OK;
                                     }
                                 ).Get(),
-                                &acceleratorKeyPressedToken
+                                &m_acceleratorKeyPressedToken
                             );
 
                             Microsoft::WRL::ComPtr<ICoreWebView2Settings> settings;
@@ -197,13 +268,42 @@ void WebViewHost::Initialize(HWND parentHwnd, const std::filesystem::path& userD
                             {
                                 settings->put_IsScriptEnabled(TRUE);
                                 settings->put_IsWebMessageEnabled(TRUE);
-
-                                // Disable the WebView2 browser right-click menu.
                                 settings->put_AreDefaultContextMenusEnabled(FALSE);
-
-                                // Disable DevTools / Inspect Element.
                                 settings->put_AreDevToolsEnabled(FALSE);
                             }
+
+                            m_webview->add_WebMessageReceived(
+                                Callback<ICoreWebView2WebMessageReceivedEventHandler>(
+                                    [this](
+                                        ICoreWebView2* sender,
+                                        ICoreWebView2WebMessageReceivedEventArgs* args
+                                    ) -> HRESULT
+                                    {
+                                        (void)sender;
+
+                                        if (!args)
+                                            return S_OK;
+
+                                        LPWSTR rawMessage = nullptr;
+                                        HRESULT messageHr =
+                                            args->TryGetWebMessageAsString(&rawMessage);
+
+                                        if (FAILED(messageHr))
+                                            return S_OK;
+
+                                        std::string message = WideToUtf8(rawMessage);
+
+                                        if (rawMessage)
+                                            CoTaskMemFree(rawMessage);
+
+                                        if (m_messageHandler)
+                                            m_messageHandler(message);
+
+                                        return S_OK;
+                                    }
+                                ).Get(),
+                                &m_webMessageReceivedToken
+                            );
 
                             m_webview->AddWebResourceRequestedFilter(
                                 L"https://imeditor-assets.example/*",
@@ -291,6 +391,27 @@ void WebViewHost::Initialize(HWND parentHwnd, const std::filesystem::path& userD
     );
 }
 
+void WebViewHost::Shutdown()
+{
+    if (m_webview)
+    {
+        m_webview->remove_WebResourceRequested(m_webResourceRequestedToken);
+        m_webview->remove_WebMessageReceived(m_webMessageReceivedToken);
+    }
+
+    if (m_controller)
+    {
+        m_controller->remove_AcceleratorKeyPressed(m_acceleratorKeyPressedToken);
+        m_controller->Close();
+    }
+
+    m_webview.Reset();
+    m_controller.Reset();
+    m_environment.Reset();
+
+    m_parentHwnd = nullptr;
+}
+
 void WebViewHost::SetBounds(const RECT& bounds)
 {
     if (m_controller)
@@ -301,4 +422,15 @@ void WebViewHost::SetVisible(bool visible)
 {
     if (m_controller)
         m_controller->put_IsVisible(visible ? TRUE : FALSE);
+}
+
+bool WebViewHost::PostStringMessage(const std::string& message)
+{
+    if (!m_webview)
+        return false;
+
+    std::wstring wide = Utf8ToWide(message);
+
+    HRESULT hr = m_webview->PostWebMessageAsString(wide.c_str());
+    return SUCCEEDED(hr);
 }

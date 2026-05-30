@@ -7,11 +7,7 @@ namespace
 {
     constexpr float kExplorerMinWidth = 60.0f;
     constexpr float kExplorerMaxWidth = 520.0f;
-
-    // Prevents the editor/webview/tabs area from getting squeezed too tiny.
     constexpr float kMinimumMainPanelWidth = 128.0f;
-
-    // Bigger than the visual line so it is easy to grab.
     constexpr float kExplorerResizeHitboxWidth = 10.0f;
 
     struct ResizeHandleState
@@ -101,9 +97,7 @@ namespace
         state.active = ImGui::IsItemActive();
 
         if (state.hovered || state.active)
-        {
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-        }
 
         if (state.active)
         {
@@ -178,12 +172,18 @@ namespace
     }
 }
 
-bool DrawEditor(const ImVec2& Display_Size, ImVec2* editorMin, ImVec2* editorMax)
+bool DrawEditor(
+    EditorState& state,
+    const ImVec2& displaySize,
+    ImVec2* editorMin,
+    ImVec2* editorMax,
+    EditorUiIntent* intent
+)
 {
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
-    ImGui::SetNextWindowSize(Display_Size);
+    ImGui::SetNextWindowSize(displaySize);
 
-    ImGuiWindowFlags window_flags =
+    ImGuiWindowFlags windowFlags =
         ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove |
@@ -199,7 +199,7 @@ bool DrawEditor(const ImVec2& Display_Size, ImVec2* editorMin, ImVec2* editorMax
         IM_COL32(32, 32, 32, 255)
     );
 
-    ImGui::Begin("ImEditor Main Window", nullptr, window_flags);
+    ImGui::Begin("ImEditor Main Window", nullptr, windowFlags);
 
     float sidebarX = 0.0f;
     float sidebarWidth = 60.0f;
@@ -210,9 +210,6 @@ bool DrawEditor(const ImVec2& Display_Size, ImVec2* editorMin, ImVec2* editorMax
     float bottomBarHeight = 20.0f;
 
     float explorerMarginFromSidebar = 10.0f;
-
-    // Static so the resized width is remembered between frames.
-    static float explorerWidth = 250.0f;
 
     float explorerTopMargin = 10.0f;
     float explorerBottomMargin = 30.0f;
@@ -232,15 +229,17 @@ bool DrawEditor(const ImVec2& Display_Size, ImVec2* editorMin, ImVec2* editorMax
     float mainPanelRightMargin = 10.0f;
     float mainPanelRounding = 8.0f;
 
-    explorerWidth = ClampExplorerWidth(
-        explorerWidth,
-        Display_Size,
+    state.explorerWidth = ClampExplorerWidth(
+        state.explorerWidth,
+        displaySize,
         explorerX,
         tabBarMarginFromExplorer,
         tabBarRightMargin
     );
 
-    SideBarState sideBarState = DrawSideBar(
+    DrawSideBar(
+        state,
+        intent,
         "SideBar",
         sidebarX,
         sidebarWidth,
@@ -251,19 +250,21 @@ bool DrawEditor(const ImVec2& Display_Size, ImVec2* editorMin, ImVec2* editorMax
     );
 
     DrawBottomBar(
+        state,
         bottomBarHeight,
         IM_COL32(39, 39, 39, 255)
     );
 
-    if (sideBarState.explorerOpen)
+    if (state.explorerOpen)
     {
         DrawExplorer(
+            state,
+            intent,
             "Explorer",
-            sideBarState.activePage,
             sidebarX,
             sidebarWidth,
             explorerMarginFromSidebar,
-            explorerWidth,
+            state.explorerWidth,
             explorerTopMargin,
             explorerBottomMargin,
             explorerRounding,
@@ -272,24 +273,26 @@ bool DrawEditor(const ImVec2& Display_Size, ImVec2* editorMin, ImVec2* editorMax
 
         DrawExplorerResizeHandle(
             explorerX,
-            explorerWidth,
+            state.explorerWidth,
             explorerTopMargin,
             explorerBottomMargin,
-            Display_Size,
+            displaySize,
             tabBarMarginFromExplorer,
             tabBarRightMargin
         );
     }
 
-    float layoutAnchorX = sideBarState.explorerOpen
+    float layoutAnchorX = state.explorerOpen
         ? explorerX
         : sidebarX;
 
-    float layoutAnchorWidth = sideBarState.explorerOpen
-        ? explorerWidth
+    float layoutAnchorWidth = state.explorerOpen
+        ? state.explorerWidth
         : sidebarWidth;
 
     DrawTabBar(
+        state,
+        intent,
         layoutAnchorX,
         layoutAnchorWidth,
         tabBarMarginFromExplorer,
@@ -301,6 +304,7 @@ bool DrawEditor(const ImVec2& Display_Size, ImVec2* editorMin, ImVec2* editorMax
     );
 
     bool hasEditorRect = DrawCodeEditor(
+        state,
         "CodeEditor",
         layoutAnchorX,
         layoutAnchorWidth,

@@ -3,36 +3,34 @@
 
 namespace
 {
-    // UTF-8 bytes for Codicon private-use Unicode characters.
-    constexpr const char* CODICON_FILES = "\xEE\xAB\xB0";          // U+EAF0
-    constexpr const char* CODICON_SOURCE_CONTROL = "\xEE\xA9\xA8"; // U+EA68
-    constexpr const char* CODICON_EXTENSIONS = "\xEE\xAB\xA6";     // U+EAE6
-    constexpr const char* CODICON_SETTINGS = "\xEE\xAD\x91";       // U+EB51
+    constexpr const char* CODICON_FILES = "\xEE\xAB\xB0";
+    constexpr const char* CODICON_SOURCE_CONTROL = "\xEE\xA9\xA8";
+    constexpr const char* CODICON_EXTENSIONS = "\xEE\xAB\xA6";
+    constexpr const char* CODICON_SETTINGS = "\xEE\xAD\x91";
 
-    ExplorerPage g_activePage = ExplorerPage::Files;
-    bool g_explorerOpen = true;
-
-    void HandleSideBarPageClick(ExplorerPage page)
+    void HandleSideBarPageClick(EditorState& state, ExplorerPage page)
     {
         if (page == ExplorerPage::Settings)
         {
-            g_activePage = ExplorerPage::Settings;
-            g_explorerOpen = false;
+            state.activePage = ExplorerPage::Settings;
+            state.explorerOpen = false;
             return;
         }
 
-        if (g_activePage == page)
+        if (state.activePage == page)
         {
-            g_explorerOpen = !g_explorerOpen;
+            state.explorerOpen = !state.explorerOpen;
             return;
         }
 
-        g_activePage = page;
-        g_explorerOpen = true;
+        state.activePage = page;
+        state.explorerOpen = true;
     }
 }
 
-SideBarState DrawSideBar(
+void DrawSideBar(
+    EditorState& state,
+    EditorUiIntent* intent,
     const char* id,
     float x,
     float width,
@@ -43,6 +41,7 @@ SideBarState DrawSideBar(
 )
 {
     (void)id;
+    (void)intent;
 
     ImVec2 windowSize = ImGui::GetWindowSize();
 
@@ -74,12 +73,12 @@ SideBarState DrawSideBar(
         "SideBarFilesButton",
         ImVec2(buttonX, currentY),
         CODICON_FILES,
-        g_activePage == ExplorerPage::Files,
+        state.activePage == ExplorerPage::Files,
         buttonSize
     );
 
     if (filesButton.clicked)
-        HandleSideBarPageClick(ExplorerPage::Files);
+        HandleSideBarPageClick(state, ExplorerPage::Files);
 
     currentY += buttonSize + buttonGap;
 
@@ -87,12 +86,12 @@ SideBarState DrawSideBar(
         "SideBarSourceControlButton",
         ImVec2(buttonX, currentY),
         CODICON_SOURCE_CONTROL,
-        g_activePage == ExplorerPage::SourceControl,
+        state.activePage == ExplorerPage::SourceControl,
         buttonSize
     );
 
     if (sourceControlButton.clicked)
-        HandleSideBarPageClick(ExplorerPage::SourceControl);
+        HandleSideBarPageClick(state, ExplorerPage::SourceControl);
 
     currentY += buttonSize + buttonGap;
 
@@ -100,12 +99,12 @@ SideBarState DrawSideBar(
         "SideBarExtensionsButton",
         ImVec2(buttonX, currentY),
         CODICON_EXTENSIONS,
-        g_activePage == ExplorerPage::Extensions,
+        state.activePage == ExplorerPage::Extensions,
         buttonSize
     );
 
     if (extensionsButton.clicked)
-        HandleSideBarPageClick(ExplorerPage::Extensions);
+        HandleSideBarPageClick(state, ExplorerPage::Extensions);
 
     const float settingsY = marginTop + size.y - buttonSize - 12.0f;
 
@@ -113,19 +112,13 @@ SideBarState DrawSideBar(
         "SideBarSettingsButton",
         ImVec2(buttonX, settingsY),
         CODICON_SETTINGS,
-        g_activePage == ExplorerPage::Settings,
+        state.activePage == ExplorerPage::Settings,
         buttonSize
     );
 
     if (settingsButton.clicked)
-        HandleSideBarPageClick(ExplorerPage::Settings);
+        HandleSideBarPageClick(state, ExplorerPage::Settings);
 
     ImGui::SetCursorPos(position);
     ImGui::Dummy(size);
-
-    SideBarState state;
-    state.activePage = g_activePage;
-    state.explorerOpen = g_explorerOpen;
-
-    return state;
 }

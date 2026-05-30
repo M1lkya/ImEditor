@@ -2,6 +2,26 @@ import { useEffect, useRef } from "react";
 import * as monaco from "monaco-editor";
 import "./index.css";
 
+type WebViewMessageEvent = {
+  data: unknown;
+};
+
+type WebViewMessageHandler = (event: WebViewMessageEvent) => void;
+
+type WebViewBridge = {
+  postMessage(message: string): void;
+  addEventListener(type: "message", listener: WebViewMessageHandler): void;
+  removeEventListener(type: "message", listener: WebViewMessageHandler): void;
+};
+
+declare global {
+  interface Window {
+    chrome?: {
+      webview?: WebViewBridge;
+    };
+  }
+}
+
 const imEditorTheme: monaco.editor.IStandaloneThemeData = {
   base: "vs-dark",
   inherit: true,
@@ -71,7 +91,7 @@ const imEditorTheme: monaco.editor.IStandaloneThemeData = {
     "input.foreground": "#D4D4D4",
     "input.border": "#3C3C3C",
 
-    "focusBorder": "#A78BFA88",
+    focusBorder: "#A78BFA88",
 
     "editorHoverWidget.background": "#272727",
     "editorHoverWidget.border": "#3C3C3C",
@@ -84,9 +104,75 @@ const imEditorTheme: monaco.editor.IStandaloneThemeData = {
   },
 };
 
+function sendNativeMessage(message: string) {
+  window.chrome?.webview?.postMessage(message);
+}
+
+function parseSetFileMessage(message: string) {
+  const prefix = "setFile\n";
+
+  if (!message.startsWith(prefix)) {
+    return null;
+  }
+
+  const titleStart = prefix.length;
+  const titleEnd = message.indexOf("\n", titleStart);
+
+  if (titleEnd < 0) {
+    return null;
+  }
+
+  return {
+    title: message.slice(titleStart, titleEnd),
+    content: message.slice(titleEnd + 1),
+  };
+}
+
+function detectLanguage(fileName: string) {
+  const lower = fileName.toLowerCase();
+
+  if (lower.endsWith(".ts") || lower.endsWith(".tsx")) {
+    return "typescript";
+  }
+
+  if (lower.endsWith(".js") || lower.endsWith(".jsx") || lower.endsWith(".mjs")) {
+    return "javascript";
+  }
+
+  if (lower.endsWith(".json")) {
+    return "json";
+  }
+
+  if (lower.endsWith(".html") || lower.endsWith(".htm")) {
+    return "html";
+  }
+
+  if (lower.endsWith(".css")) {
+    return "css";
+  }
+
+  if (
+    lower.endsWith(".cpp") ||
+    lower.endsWith(".cc") ||
+    lower.endsWith(".cxx") ||
+    lower.endsWith(".c") ||
+    lower.endsWith(".h") ||
+    lower.endsWith(".hpp")
+  ) {
+    return "cpp";
+  }
+
+  if (lower.endsWith(".md")) {
+    return "markdown";
+  }
+
+  return "plaintext";
+}
+
 export default function App() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const suppressChangeMessageRef = useRef(false);
 
   useEffect(() => {
     if (!containerRef.current || editorRef.current) {
@@ -95,18 +181,12 @@ export default function App() {
 
     monaco.editor.defineTheme("imeditor-purple", imEditorTheme);
 
-    editorRef.current = monaco.editor.create(containerRef.current, {
-      value: `#include <iostream>
-
-int main()
-{
-    std::cout << "Hello from React + Monaco!" << std::endl;
-    return 0;
-}
-`,
-      language: "cpp",
+    const editor = monaco.editor.create(containerRef.current, {
+      value: "",
+      language: "plaintext",
       theme: "imeditor-purple",
       automaticLayout: true,
+      readOnly: true,
 
       fontFamily: "JetBrains Mono, Consolas, monospace",
       fontSize: 14,
@@ -135,8 +215,71 @@ int main()
       },
     });
 
+    editorRef.current = editor;
+
+    const sendContentChanged = () => {
+      if (suppressChangeMessageRef.current) {
+        return;
+      }
+
+      sendNativeMessage(`contentChanged\n${editor.getValue()}`);
+    };
+
+    const contentDisposable = editor.onDidChangeModelContent(sendContentChanged);
+
+    editor.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+      () => {
+        sendContentChanged();
+        sendNativeMessage("saveRequested");
+      }
+    );
+
+    const handleNativeMessage: WebViewMessageHandler = (event) => {
+      if (typeof event.data !== "string") {
+        return;
+      }
+
+      const message = event.data;
+
+      if (message === "clearEditor") {
+        suppressChangeMessageRef.current = true;
+        editor.setValue("");
+        editor.updateOptions({ readOnly: true });
+        suppressChangeMessageRef.current = false;
+        return;
+      }
+
+      const setFile = parseSetFileMessage(message);
+
+      if (setFile) {
+        suppressChangeMessageRef.current = true;
+
+        editor.setValue(setFile.content);
+        editor.updateOptions({ readOnly: false });
+
+        const model = editor.getModel();
+
+        if (model) {
+          monaco.editor.setModelLanguage(model, detectLanguage(setFile.title));
+        }
+
+        suppressChangeMessageRef.current = false;
+
+        editor.focus();
+      }
+    };
+
+    window.chrome?.webview?.addEventListener("message", handleNativeMessage);
+
+    sendNativeMessage("ready");
+
     return () => {
-      editorRef.current?.dispose();
+      window.chrome?.webview?.removeEventListener("message", handleNativeMessage);
+
+      contentDisposable.dispose();
+
+      editor.dispose();
       editorRef.current = null;
     };
   }, []);
