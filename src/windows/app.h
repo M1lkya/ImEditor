@@ -34,6 +34,7 @@ private:
     EditorState m_editorState;
 
     std::string m_imguiIniPath;
+    std::string m_lastWebViewRoute;
 
     bool m_done = false;
     bool m_webViewReady = false;

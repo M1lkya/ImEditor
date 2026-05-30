@@ -8,23 +8,53 @@ namespace
     constexpr const char* CODICON_EXTENSIONS = "\xEE\xAB\xA6";
     constexpr const char* CODICON_SETTINGS = "\xEE\xAD\x91";
 
+    constexpr float kExplorerDefaultWidth = 220.0f;
+
+    void EnsureExplorerHasUsableWidth(EditorState& state)
+    {
+        if (state.explorerWidth <= 0.0f)
+            state.explorerWidth = kExplorerDefaultWidth;
+    }
+
     void HandleSideBarPageClick(EditorState& state, ExplorerPage page)
     {
         if (page == ExplorerPage::Settings)
         {
             state.activePage = ExplorerPage::Settings;
             state.explorerOpen = false;
+
+            state.activeContentPage = ActiveContentPage::Settings;
+            state.activeFileNeedsWebSync = true;
             return;
         }
 
         if (state.activePage == page)
         {
             state.explorerOpen = !state.explorerOpen;
-            return;
+        }
+        else
+        {
+            state.activePage = page;
+            state.explorerOpen = true;
         }
 
-        state.activePage = page;
-        state.explorerOpen = true;
+        if (state.explorerOpen)
+            EnsureExplorerHasUsableWidth(state);
+
+        if (HasActiveFile(state))
+        {
+            state.activeContentPage = ActiveContentPage::Editor;
+        }
+        else if (state.welcomeTabOpen)
+        {
+            state.activeContentPage = ActiveContentPage::Welcome;
+        }
+        else
+        {
+            state.activeContentPage = ActiveContentPage::None;
+        }
+
+        state.activeFileNeedsWebSync = true;
     }
 }
 

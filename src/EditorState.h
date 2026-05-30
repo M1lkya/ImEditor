@@ -13,6 +13,14 @@ enum class ExplorerPage
     Settings
 };
 
+enum class ActiveContentPage
+{
+    None,
+    Welcome,
+    Settings,
+    Editor
+};
+
 struct WorkspaceEntry
 {
     std::filesystem::path absolutePath;
@@ -42,6 +50,9 @@ struct EditorUiIntent
     bool openWorkspaceRequested = false;
     bool saveActiveFileRequested = false;
 
+    bool selectWelcomeTabRequested = false;
+    bool closeWelcomeTabRequested = false;
+
     int openWorkspaceEntryIndex = -1;
     int toggleWorkspaceEntryIndex = -1;
     int selectTabIndex = -1;
@@ -51,9 +62,13 @@ struct EditorUiIntent
 struct EditorState
 {
     ExplorerPage activePage = ExplorerPage::Files;
-    bool explorerOpen = true;
+    ActiveContentPage activeContentPage = ActiveContentPage::Welcome;
 
-    float explorerWidth = 250.0f;
+    bool explorerOpen = false;
+
+    bool welcomeTabOpen = true;
+
+    float explorerWidth = 220.0f;
     float tabScrollX = 0.0f;
 
     std::filesystem::path workspaceRoot;
@@ -65,7 +80,7 @@ struct EditorState
     std::vector<EditorOpenFile> openFiles;
     int activeFileIndex = -1;
 
-    bool activeFileNeedsWebSync = false;
+    bool activeFileNeedsWebSync = true;
 
     double nextWorkspaceRefreshTime = 0.0;
     double workspaceRefreshIntervalSeconds = 8.0;

@@ -1,5 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as monaco from "monaco-editor";
+import WelcomeScreen from "./welcomeScreen";
+import Settings from "./Settings";
 import "./index.css";
 
 type WebViewMessageEvent = {
@@ -13,6 +15,8 @@ type WebViewBridge = {
   addEventListener(type: "message", listener: WebViewMessageHandler): void;
   removeEventListener(type: "message", listener: WebViewMessageHandler): void;
 };
+
+type ActiveView = "none" | "welcome" | "settings" | "editor";
 
 declare global {
   interface Window {
@@ -72,7 +76,7 @@ const imEditorTheme: monaco.editor.IStandaloneThemeData = {
 
     "scrollbarSlider.background": "#5A5A5A66",
     "scrollbarSlider.hoverBackground": "#6A6A6A88",
-    "scrollbarSlider.activeBackground": "#7A7A7AAA",
+    "scrollbarSlider.activeBackground": "#7A7AAA",
 
     "editorWidget.background": "#272727",
     "editorWidget.border": "#3C3C3C",
@@ -128,6 +132,26 @@ function parseSetFileMessage(message: string) {
   };
 }
 
+function parseSetPageMessage(message: string) {
+  const prefix = "setPage\n";
+
+  if (!message.startsWith(prefix)) {
+    return null;
+  }
+
+  const page = message.slice(prefix.length).trim();
+
+  if (
+    page === "none" ||
+    page === "welcome" ||
+    page === "settings"
+  ) {
+    return page;
+  }
+
+  return null;
+}
+
 function detectLanguage(fileName: string) {
   const lower = fileName.toLowerCase();
 
@@ -170,6 +194,8 @@ function detectLanguage(fileName: string) {
 }
 
 export default function App() {
+  const [activeView, setActiveView] = useState<ActiveView>("welcome");
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const suppressChangeMessageRef = useRef(false);
@@ -242,11 +268,24 @@ export default function App() {
 
       const message = event.data;
 
+      const page = parseSetPageMessage(message);
+
+      if (page) {
+        suppressChangeMessageRef.current = true;
+        editor.updateOptions({ readOnly: true });
+        suppressChangeMessageRef.current = false;
+
+        setActiveView(page);
+        return;
+      }
+
       if (message === "clearEditor") {
         suppressChangeMessageRef.current = true;
         editor.setValue("");
         editor.updateOptions({ readOnly: true });
         suppressChangeMessageRef.current = false;
+
+        setActiveView("none");
         return;
       }
 
@@ -266,7 +305,12 @@ export default function App() {
 
         suppressChangeMessageRef.current = false;
 
-        editor.focus();
+        setActiveView("editor");
+
+        requestAnimationFrame(() => {
+          editor.layout();
+          editor.focus();
+        });
       }
     };
 
@@ -286,7 +330,13 @@ export default function App() {
 
   return (
     <div className="h-full w-full overflow-hidden rounded-lg bg-[#1e1e1e]">
-      <div ref={containerRef} className="h-full w-full" />
+      <div
+        ref={containerRef}
+        className={activeView === "editor" ? "h-full w-full" : "hidden h-full w-full"}
+      />
+
+      {activeView === "welcome" && <WelcomeScreen />}
+      {activeView === "settings" && <Settings />}
     </div>
   );
 }

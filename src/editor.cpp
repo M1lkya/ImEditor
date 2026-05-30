@@ -5,9 +5,11 @@
 
 namespace
 {
-    constexpr float kExplorerMinWidth = 60.0f;
-    constexpr float kExplorerMaxWidth = 520.0f;
-    constexpr float kMinimumMainPanelWidth = 128.0f;
+    constexpr float kExplorerDefaultWidth = 220.0f;
+    constexpr float kExplorerMinWidth = 0.0f;
+    constexpr float kExplorerAutoCloseWidth = 1.0f;
+    constexpr float kExplorerMaxWidth = 1000.0f;
+    constexpr float kMinimumMainPanelWidth = 100.0f;
     constexpr float kExplorerResizeHitboxWidth = 10.0f;
 
     struct ResizeHandleState
@@ -196,7 +198,7 @@ bool DrawEditor(
 
     ImGui::PushStyleColor(
         ImGuiCol_WindowBg,
-        IM_COL32(32, 32, 32, 255)
+        IM_COL32(24, 24, 28, 255)
     );
 
     ImGui::Begin("ImEditor Main Window", nullptr, windowFlags);
@@ -246,13 +248,13 @@ bool DrawEditor(
         sidebarTopMargin,
         sidebarBottomMargin,
         sidebarRounding,
-        IM_COL32(39, 39, 39, 255)
+        IM_COL32(34, 34, 40, 255)
     );
 
     DrawBottomBar(
         state,
         bottomBarHeight,
-        IM_COL32(39, 39, 39, 255)
+        IM_COL32(34, 34, 40, 255)
     );
 
     if (state.explorerOpen)
@@ -268,7 +270,7 @@ bool DrawEditor(
             explorerTopMargin,
             explorerBottomMargin,
             explorerRounding,
-            IM_COL32(39, 39, 39, 255)
+            IM_COL32(34, 34, 40, 255)
         );
 
         DrawExplorerResizeHandle(
@@ -280,6 +282,12 @@ bool DrawEditor(
             tabBarMarginFromExplorer,
             tabBarRightMargin
         );
+
+        if (state.explorerWidth <= kExplorerAutoCloseWidth)
+        {
+            state.explorerOpen = false;
+            state.explorerWidth = kExplorerDefaultWidth;
+        }
     }
 
     float layoutAnchorX = state.explorerOpen
@@ -300,7 +308,7 @@ bool DrawEditor(
         tabBarHeight,
         tabBarRightMargin,
         tabBarRounding,
-        IM_COL32(39, 39, 39, 255)
+        IM_COL32(34, 34, 40, 255)
     );
 
     bool hasEditorRect = DrawCodeEditor(
@@ -316,7 +324,7 @@ bool DrawEditor(
         mainPanelMarginFromBottomBar,
         mainPanelRightMargin,
         mainPanelRounding,
-        IM_COL32(39, 39, 39, 255),
+        IM_COL32(30, 29, 36, 255),
         editorMin,
         editorMax
     );

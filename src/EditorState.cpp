@@ -8,7 +8,7 @@
 
 namespace
 {
-    constexpr std::uintmax_t kMaxOpenFileBytes = 5 * 1024 * 1024;
+    constexpr std::uintmax_t kMaxOpenFileBytes = 256ULL * 1024ULL * 1024ULL;
 
     constexpr std::size_t kMaxVisibleWorkspaceEntries = 12000;
     constexpr std::size_t kMaxFilesPerDirectory = 5000;
@@ -26,23 +26,6 @@ namespace
         );
 
         return value;
-    }
-
-    bool ShouldSkipDirectoryName(const std::string& name)
-    {
-        std::string lower = ToLower(name);
-
-        return
-            lower == ".git" ||
-            lower == ".vs" ||
-            lower == ".vscode" ||
-            lower == "node_modules" ||
-            lower == "build" ||
-            lower == "dist" ||
-            lower == "generated" ||
-            lower == ".cache" ||
-            lower == ".next" ||
-            lower == ".turbo";
     }
 
     std::filesystem::path NormalizePath(const std::filesystem::path& path)
@@ -166,9 +149,7 @@ namespace
 
             if (isDirectory)
             {
-                if (!ShouldSkipDirectoryName(name))
-                    outDirectories.push_back(entry);
-
+                outDirectories.push_back(entry);
                 continue;
             }
 

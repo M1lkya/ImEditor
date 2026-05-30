@@ -210,9 +210,8 @@ void App::RenderFrame()
     );
 
     HandleEditorIntent(intent);
-    SyncActiveFileToWebView();
 
-    if (hasEditorRect && HasActiveFile(m_editorState))
+    if (hasEditorRect)
     {
         RECT rect;
         rect.left = static_cast<LONG>(editorMin.x);
@@ -227,6 +226,8 @@ void App::RenderFrame()
     {
         m_webView.SetVisible(false);
     }
+
+    SyncActiveFileToWebView();
 }
 
 void App::EndFrame()
@@ -252,6 +253,34 @@ void App::EndFrame()
 
 void App::HandleEditorIntent(const EditorUiIntent& intent)
 {
+    if (intent.selectWelcomeTabRequested)
+    {
+        m_editorState.activePage = ExplorerPage::Files;
+        m_editorState.explorerOpen = false;
+        m_editorState.welcomeTabOpen = true;
+        m_editorState.activeContentPage = ActiveContentPage::Welcome;
+        m_editorState.activeFileNeedsWebSync = true;
+    }
+
+    if (intent.closeWelcomeTabRequested)
+    {
+        m_editorState.welcomeTabOpen = false;
+
+        if (m_editorState.activeContentPage == ActiveContentPage::Welcome)
+        {
+            if (HasActiveFile(m_editorState))
+            {
+                m_editorState.activeContentPage = ActiveContentPage::Editor;
+            }
+            else
+            {
+                m_editorState.activeContentPage = ActiveContentPage::None;
+            }
+
+            m_editorState.activeFileNeedsWebSync = true;
+        }
+    }
+
     if (intent.openWorkspaceRequested && !m_editorState.hasWorkspace)
     {
         std::filesystem::path folder = PickWorkspaceFolder();
@@ -283,12 +312,22 @@ void App::HandleEditorIntent(const EditorUiIntent& intent)
             m_editorState.workspaceEntries[intent.openWorkspaceEntryIndex];
 
         if (!entry.isDirectory)
-            OpenFileInEditor(m_editorState, entry.absolutePath);
+        {
+            int openedIndex = OpenFileInEditor(m_editorState, entry.absolutePath);
+
+            if (openedIndex >= 0)
+            {
+                m_editorState.activeContentPage = ActiveContentPage::Editor;
+                m_editorState.activeFileNeedsWebSync = true;
+            }
+        }
     }
 
     if (intent.selectTabIndex >= 0)
     {
         SetActiveOpenFile(m_editorState, intent.selectTabIndex);
+        m_editorState.activeContentPage = ActiveContentPage::Editor;
+        m_editorState.activeFileNeedsWebSync = true;
     }
 
     if (intent.saveActiveFileRequested)
@@ -299,6 +338,21 @@ void App::HandleEditorIntent(const EditorUiIntent& intent)
     if (intent.closeTabIndex >= 0)
     {
         CloseOpenFile(m_editorState, intent.closeTabIndex);
+
+        if (!HasActiveFile(m_editorState) &&
+            m_editorState.activeContentPage == ActiveContentPage::Editor)
+        {
+            if (m_editorState.welcomeTabOpen)
+            {
+                m_editorState.activeContentPage = ActiveContentPage::Welcome;
+            }
+            else
+            {
+                m_editorState.activeContentPage = ActiveContentPage::None;
+            }
+
+            m_editorState.activeFileNeedsWebSync = true;
+        }
     }
 }
 
@@ -309,6 +363,7 @@ void App::HandleWebViewMessage(const std::string& message)
     if (view == kWebMessageReady)
     {
         m_webViewReady = true;
+        m_lastWebViewRoute.clear();
         m_editorState.activeFileNeedsWebSync = true;
         return;
     }
@@ -331,29 +386,71 @@ void App::HandleWebViewMessage(const std::string& message)
 
 void App::SyncActiveFileToWebView()
 {
-    if (!m_webViewReady || !m_editorState.activeFileNeedsWebSync)
+    if (!m_webViewReady)
         return;
 
-    const EditorOpenFile* file = GetActiveOpenFile(m_editorState);
+    std::string route;
+    std::string message;
 
-    if (!file)
+    if (m_editorState.activeContentPage == ActiveContentPage::Settings)
     {
-        if (m_webView.PostStringMessage("clearEditor"))
-            m_editorState.activeFileNeedsWebSync = false;
+        route = "page:settings";
+        message = "setPage\nsettings";
+    }
+    else if (
+        m_editorState.activeContentPage == ActiveContentPage::Welcome &&
+        m_editorState.welcomeTabOpen
+    )
+    {
+        route = "page:welcome";
+        message = "setPage\nwelcome";
+    }
+    else if (m_editorState.activeContentPage == ActiveContentPage::Editor)
+    {
+        const EditorOpenFile* file = GetActiveOpenFile(m_editorState);
 
-        return;
+        if (!file)
+        {
+            if (m_editorState.welcomeTabOpen)
+            {
+                m_editorState.activeContentPage = ActiveContentPage::Welcome;
+
+                route = "page:welcome";
+                message = "setPage\nwelcome";
+            }
+            else
+            {
+                m_editorState.activeContentPage = ActiveContentPage::None;
+
+                route = "page:none";
+                message = "setPage\nnone";
+            }
+        }
+        else
+        {
+            route = "file:" + file->displayPath;
+
+            message.reserve(file->content.size() + file->displayPath.size() + 16);
+            message += "setFile\n";
+            message += file->displayPath;
+            message += "\n";
+            message += file->content;
+        }
+    }
+    else
+    {
+        route = "page:none";
+        message = "setPage\nnone";
     }
 
-    std::string message;
-    message.reserve(file->content.size() + file->displayPath.size() + 16);
-
-    message += "setFile\n";
-    message += file->displayPath;
-    message += "\n";
-    message += file->content;
+    if (!m_editorState.activeFileNeedsWebSync && route == m_lastWebViewRoute)
+        return;
 
     if (m_webView.PostStringMessage(message))
+    {
+        m_lastWebViewRoute = route;
         m_editorState.activeFileNeedsWebSync = false;
+    }
 }
 
 std::filesystem::path App::PickWorkspaceFolder()
